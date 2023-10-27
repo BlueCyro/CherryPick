@@ -51,6 +51,12 @@ public class CherryPick : ResoniteMod
             builder.VerticalLayout(7.28605f, 7.28605f);
             builder.Style.MinHeight = 64f;
             var field = builder.TextField(null, true, "Undo text field search", false, $"<alpha=#77>Search...");
+
+            var smooth = field.Slot.AttachComponent<SmoothValue<colorX>>();
+
+            smooth.Value.Target = field.Text.CaretColor;
+            smooth.WriteBack.Value = true;
+            smooth.Speed.Value = 12f;
             
 
             Button button = field.Slot.GetComponent<Button>();
@@ -59,7 +65,7 @@ public class CherryPick : ResoniteMod
 
             if (driver != null && driver.Target != null)
             {
-                var smooth = field.Slot.AttachComponent<SmoothValue<colorX>>();
+                smooth = field.Slot.AttachComponent<SmoothValue<colorX>>();
                 smooth.TargetValue.Value = driver.Target.Value;
                 driver.Target = smooth.TargetValue;
                 smooth.Value.Target = targetField;
@@ -79,12 +85,7 @@ public class CherryPick : ResoniteMod
             Slot searchRoot = builder.Root;
             builder.VerticalLayout(7.28605f, 0f);
             builder.FitContent(SizeFit.Disabled, SizeFit.MinSize);
-
-
-            for (int i = 0; i < 10; i++)
-            {
-                builder.Text("TEST TEST");
-            }
+            
             searchRoot.ActiveSelf = false;
 
 
