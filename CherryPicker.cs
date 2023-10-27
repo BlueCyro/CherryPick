@@ -16,6 +16,7 @@ public class CherryPicker(string? scope = null)
             WarmScope(value);
         }
     }
+    
     public Dictionary<string, WorkerDetails> Workers => scope != null ? _pathCache[scope] : _allWorkers;
     private static readonly Dictionary<string, Dictionary<string, WorkerDetails>> _pathCache = new();
     private static readonly Dictionary<string, WorkerDetails> _allWorkers = new();
@@ -39,18 +40,19 @@ public class CherryPicker(string? scope = null)
 
     public IEnumerable<WorkerDetails> PerformMatch(string query)
     {
-        string lowerQuery = query.ToLower();
-        
         return Workers
-            .OrderByDescending(w => MatchRatio(w.Key, lowerQuery))
+            .Select(w => new { worker = w, ratio = MatchRatioInsensitive(w.Key, query) })
+            .Where(x => x.ratio > 0f)
+            .OrderByDescending(x => x.ratio)
             .Take(10)
-            .Where(w => MatchRatio(w.Key, lowerQuery) > 0f)
-            .Select(w => w.Value);
+            .Select(x => x.worker.Value);
     }
 
-    static float MatchRatio(string result, string match)
+    static float MatchRatioInsensitive(string result, string match)
     {
-        return result.Contains(match) ? (float)match.Length / result.Length : 0f;
+        bool contains = result.IndexOf(match, StringComparison.OrdinalIgnoreCase) >= 0;
+
+        return contains ? (float)match.Length / result.Length : 0f;
     }
 
     public void EditStart(Slot searchRoot, Slot defaultRoot, CherryPicker picker, Sync<string> scope)
