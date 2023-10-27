@@ -16,7 +16,7 @@ public class CherryPicker(string? scope = null)
             WarmScope(value);
         }
     }
-    
+
     public Dictionary<string, WorkerDetails> Workers => scope != null ? _pathCache[scope] : _allWorkers;
     private static readonly Dictionary<string, Dictionary<string, WorkerDetails>> _pathCache = new();
     private static readonly Dictionary<string, WorkerDetails> _allWorkers = new();
@@ -38,13 +38,13 @@ public class CherryPicker(string? scope = null)
             _pathCache.Add(scope!, _allWorkers.Where(w => w.Value.Path.StartsWith(scope)).ToDictionary(p => p.Key, p => p.Value));
     }
 
-    public IEnumerable<WorkerDetails> PerformMatch(string query)
+    public IEnumerable<WorkerDetails> PerformMatch(string query, int resultCount = 10)
     {
         return Workers
             .Select(w => new { worker = w, ratio = MatchRatioInsensitive(w.Key, query) })
             .Where(x => x.ratio > 0f)
             .OrderByDescending(x => x.ratio)
-            .Take(10)
+            .Take(resultCount)
             .Select(x => x.worker.Value);
     }
 
