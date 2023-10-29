@@ -2,6 +2,7 @@ using System.Reflection;
 using FrooxEngine;
 using Elements.Core;
 using FrooxEngine.UIX;
+using Elements.Assets;
 
 namespace CherryPick;
 
@@ -20,6 +21,7 @@ public class CherryPicker(string? scope = null)
     public Dictionary<string, WorkerDetails> Workers => scope != null ? _pathCache[scope] : _allWorkers;
     private static readonly Dictionary<string, Dictionary<string, WorkerDetails>> _pathCache = new();
     private static readonly Dictionary<string, WorkerDetails> _allWorkers = new();
+    private readonly List<WorkerDetails> _results = new();
 
     static CherryPicker()
     {
@@ -38,14 +40,21 @@ public class CherryPicker(string? scope = null)
             _pathCache.Add(scope!, _allWorkers.Where(w => w.Value.Path.StartsWith(scope)).ToDictionary(p => p.Key, p => p.Value));
     }
 
-    public IEnumerable<WorkerDetails> PerformMatch(string query, int resultCount = 10)
+    public void PerformMatch(string query, int resultCount = 10)
     {
-        return Workers
+        _results.Clear();
+
+        var results = Workers
             .Select(w => new { worker = w, ratio = MatchRatioInsensitive(w.Key, query) })
             .Where(x => x.ratio > 0f)
             .OrderByDescending(x => x.ratio)
             .Take(resultCount)
             .Select(x => x.worker.Value);
+        
+        foreach (var w in results)
+        {
+            _results.Add(w);
+        }
     }
 
     static float MatchRatioInsensitive(string result, string match)
@@ -98,33 +107,69 @@ public class CherryPicker(string? scope = null)
             searchBuilder.Style.TextAlignment = Alignment.MiddleLeft;
             searchBuilder.Style.ButtonTextAlignment = Alignment.MiddleLeft;
             searchBuilder.Style.MinHeight = 48f;
-
-            var results = PerformMatch(editor.Text.Target.Text);
+            searchBuilder.Style.TextLineHeight = 1f;
 
             searchRoot.DestroyChildren();
+            int tickIndex = txt.IndexOf('`');
+            string matchTxt = tickIndex > 0 ? txt.Substring(0, tickIndex) : txt;
+            PerformMatch(matchTxt);
 
-            searchBuilder.Style.TextLineHeight = 1f;
-            foreach (var result in results)
+            foreach (var result in _results)
             {
                 string arg = result.Type.IsGenericTypeDefinition ? Path.Combine(result.Path, result.Type.FullName) : result.Type.FullName;
                 var pressed = result.Type.IsGenericTypeDefinition ? onGenericPressed : onAddPressed;
 
-                var button = searchBuilder.Button(result.Name, RadiantUI_Constants.Sub.CYAN, pressed, arg, 0f);
+                CreateButton(result, pressed, arg, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.CYAN);
+            }
 
-                if (result.Type.IsGenericTypeDefinition)
-                    button.LocalPressed += (b, d) => EditFinished(editor, searchRoot, defaultRoot, true);
-                
-                var text = (Text)button.LabelTextField.Parent;
-                text.Size.Value = 24.44582f;
+            WorkerDetails firstGeneric = _results.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
 
-                var smooth = button.Slot.AttachComponent<SmoothValue<colorX>>();
-                IField<colorX> target = button.ColorDrivers.First().ColorDrive.Target;
-                smooth.TargetValue.Value = target.Value;
+            if (firstGeneric.Type != null && tickIndex > 0)
+            {
+                string newTxt = txt.Substring(MathX.Clamp(tickIndex + 2, 0, txt.Length));
+                CherryPick.Msg(newTxt);
+                string typeName = firstGeneric.Type.FullName + newTxt;
 
-                button.ColorDrivers.First().ColorDrive.Target = smooth.TargetValue;
-                smooth.Value.Target = target;
-                smooth.Speed.Value = 12f;
+                Type constructed = WorkerManager.GetType(typeName);
+                CherryPick.Msg(typeName);
+
+                if (constructed != null)
+                {
+                    WorkerDetails detail = new(constructed.GetNiceName(), "", constructed);
+                    Button typeButton = CreateButton(detail, onAddPressed, typeName, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.ORANGE);
+                    typeButton.Slot.OrderOffset = -1024;
+                }
             }
         }
+    }
+
+    public static bool IsGeneric(string type)
+    {
+        if (type.Contains('`'))
+            return true;
+        
+        return false;
+    }
+
+    public Button CreateButton(WorkerDetails detail, ButtonEventHandler<string> pressed, string arg, UIBuilder builder, TextEditor editor, Slot searchRoot, Slot defaultRoot, colorX col)
+    {
+        
+        var button = builder.Button(detail.Name, col, pressed, arg, 0f);
+
+        if (detail.Type.IsGenericTypeDefinition)
+            button.LocalPressed += (b, d) => EditFinished(editor, searchRoot, defaultRoot, true);
+        
+        var text = (Text)button.LabelTextField.Parent;
+        text.Size.Value = 24.44582f;
+
+        var smooth = button.Slot.AttachComponent<SmoothValue<colorX>>();
+        IField<colorX> target = button.ColorDrivers.First().ColorDrive.Target;
+        smooth.TargetValue.Value = target.Value;
+
+        button.ColorDrivers.First().ColorDrive.Target = smooth.TargetValue;
+        smooth.Value.Target = target;
+        smooth.Speed.Value = 12f;
+
+        return button;
     }
 }
