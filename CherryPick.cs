@@ -99,13 +99,19 @@ public class CherryPick : ResoniteMod
 
             CherryPicker picker = new();
 
+            UIBuilder searchBuilder = new(searchRoot);
+            RadiantUI_Constants.SetupEditorStyle(searchBuilder);
+            searchBuilder.Style.TextAlignment = Alignment.MiddleLeft;
+            searchBuilder.Style.ButtonTextAlignment = Alignment.MiddleLeft;
+            searchBuilder.Style.MinHeight = 80f;
+            searchBuilder.Style.TextLineHeight = 1f;
+
             field.Editor.Target.LocalEditingStarted += c => picker.EditStart(searchRoot, ____uiRoot, picker, ____rootPath);
 
-            field.Editor.Target.LocalEditingChanged += c => picker.EditChanged(field.Editor, searchRoot, ____uiRoot, onGenericPressed, onAddPressed);
+            field.Editor.Target.LocalEditingChanged += c => picker.EditChanged(field.Editor, searchRoot, ____uiRoot, searchBuilder, onGenericPressed, onAddPressed);
 
             field.Editor.Target.LocalEditingFinished += c => picker.EditFinished(c, searchRoot, ____uiRoot);
             
-
             return false;
         }
     }

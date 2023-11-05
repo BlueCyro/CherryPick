@@ -37,7 +37,13 @@ public class CherryPicker(string? scope = null)
     public static void WarmScope(string? scope = null)
     {
         if (!string.IsNullOrEmpty(scope) && !_pathCache.ContainsKey(scope!))
-            _pathCache.Add(scope!, _allWorkers.Where(w => w.Value.Path.StartsWith(scope)).ToDictionary(p => p.Key, p => p.Value));
+        {
+            var filteredDict = _allWorkers
+                                .Where(w => w.Value.Path.StartsWith(scope))
+                                .ToDictionary(p => p.Key, p => p.Value);
+
+            _pathCache.Add(scope!, filteredDict);
+        }
     }
 
     public void PerformMatch(string query, int resultCount = 10)
@@ -90,71 +96,63 @@ public class CherryPicker(string? scope = null)
         }
     }
 
-    public void EditChanged(TextEditor editor, Slot searchRoot, Slot defaultRoot, ButtonEventHandler<string> onGenericPressed, ButtonEventHandler<string> onAddPressed)
+    public void EditChanged(TextEditor editor, Slot searchRoot, Slot defaultRoot, UIBuilder searchBuilder, ButtonEventHandler<string> onGenericPressed, ButtonEventHandler<string> onAddPressed)
     {
-        if (searchRoot != null &&
-            defaultRoot != null && 
-            editor != null &&
-            onGenericPressed != null &&
-            onAddPressed != null)
-        {
-            string txt = editor.Text.Target.Text;
-            if (txt == null)
+        if (searchRoot == null ||
+            defaultRoot == null || 
+            editor == null ||
+            onGenericPressed == null ||
+            onAddPressed == null || 
+            searchBuilder == null)
                 return;
-            
-            UIBuilder searchBuilder = new(searchRoot);
-            RadiantUI_Constants.SetupEditorStyle(searchBuilder);
-            searchBuilder.Style.TextAlignment = Alignment.MiddleLeft;
-            searchBuilder.Style.ButtonTextAlignment = Alignment.MiddleLeft;
-            searchBuilder.Style.MinHeight = 48f;
-            searchBuilder.Style.TextLineHeight = 1f;
+        
+        string txt = editor.Text.Target.Text;
+        if (txt == null)
+            return;
 
-            searchRoot.DestroyChildren();
-            int tickIndex = txt.IndexOf('`');
-            string matchTxt = tickIndex > 0 ? txt.Substring(0, tickIndex) : txt;
-            PerformMatch(matchTxt);
+        searchRoot.DestroyChildren();
+        int tickIndex = txt.IndexOf('`');
+        string matchTxt = tickIndex > 0 ? txt.Substring(0, tickIndex) : txt;
+        PerformMatch(matchTxt);
 
-            foreach (var result in _results)
+        foreach (var result in _results)
+        {
+            string arg = result.Type.IsGenericTypeDefinition ? Path.Combine(result.Path, result.Type.FullName) : result.Type.FullName;
+            var pressed = result.Type.IsGenericTypeDefinition ? onGenericPressed : onAddPressed;
+
+            CreateButton(result, pressed, arg, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.CYAN);
+        }
+
+        WorkerDetails firstGeneric = _results.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
+
+        if (firstGeneric.Type != null && tickIndex > 0)
+        {
+            string newTxt = txt.Substring(MathX.Clamp(tickIndex + 2, 0, txt.Length));
+            CherryPick.Msg(newTxt);
+            string typeName = firstGeneric.Type.FullName + newTxt;
+            Type? constructed = null;
+            try
             {
-                string arg = result.Type.IsGenericTypeDefinition ? Path.Combine(result.Path, result.Type.FullName) : result.Type.FullName;
-                var pressed = result.Type.IsGenericTypeDefinition ? onGenericPressed : onAddPressed;
-
-                CreateButton(result, pressed, arg, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.CYAN);
+                constructed = WorkerManager.GetType(typeName);
             }
+            catch (Exception) { }; // Lazy way to get around accidentally making types with too few parameters
 
-            WorkerDetails firstGeneric = _results.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
+            CherryPick.Msg(typeName);
 
-            if (firstGeneric.Type != null && tickIndex > 0)
+            if (constructed != null)
             {
-                string newTxt = txt.Substring(MathX.Clamp(tickIndex + 2, 0, txt.Length));
-                CherryPick.Msg(newTxt);
-                string typeName = firstGeneric.Type.FullName + newTxt;
-
-                Type constructed = WorkerManager.GetType(typeName);
-                CherryPick.Msg(typeName);
-
-                if (constructed != null)
-                {
-                    WorkerDetails detail = new(constructed.GetNiceName(), "", constructed);
-                    Button typeButton = CreateButton(detail, onAddPressed, typeName, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.ORANGE);
-                    typeButton.Slot.OrderOffset = -1024;
-                }
+                WorkerDetails detail = new(constructed.GetNiceName(), firstGeneric.Path, constructed);
+                Button typeButton = CreateButton(detail, onAddPressed, typeName, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.ORANGE);
+                typeButton.Slot.OrderOffset = -1024;
             }
         }
     }
 
-    public static bool IsGeneric(string type)
+    private Button CreateButton(WorkerDetails detail, ButtonEventHandler<string> pressed, string arg, UIBuilder builder, TextEditor editor, Slot searchRoot, Slot defaultRoot, colorX col)
     {
-        if (type.Contains('`'))
-            return true;
-        
-        return false;
-    }
+        string path = detail.Path.Replace($"{Scope}", null);
 
-    public Button CreateButton(WorkerDetails detail, ButtonEventHandler<string> pressed, string arg, UIBuilder builder, TextEditor editor, Slot searchRoot, Slot defaultRoot, colorX col)
-    {
-        
-        var button = builder.Button(detail.Name, col, pressed, arg, 0f);
+        var button = builder.Button($"{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, 0f);
 
         if (detail.Type.IsGenericTypeDefinition)
             button.LocalPressed += (b, d) => EditFinished(editor, searchRoot, defaultRoot, true);
