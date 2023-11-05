@@ -150,7 +150,7 @@ public class CherryPicker(string? scope = null)
 
     private Button CreateButton(WorkerDetails detail, ButtonEventHandler<string> pressed, string arg, UIBuilder builder, TextEditor editor, Slot searchRoot, Slot defaultRoot, colorX col)
     {
-        string path = detail.Path.Replace($"{Scope}", null);
+        string path = detail.Path.Replace($"{Scope ?? ""}", null);
 
         var button = builder.Button($"{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, 0f);
 
