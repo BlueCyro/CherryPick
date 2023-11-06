@@ -48,7 +48,7 @@ public class CherryPick : ResoniteMod
             builder.Style.TextLineHeight = 1f;
 
 
-            builder.VerticalLayout(7.28605f, 7.28605f);
+            builder.VerticalLayout(7.28605f, 7.28605f); // UI design magic funny look-good values.
             builder.Style.MinHeight = 64f;
             var field = builder.TextField(null, true, "Undo text field search", true, $"<alpha=#77>Search...");
 

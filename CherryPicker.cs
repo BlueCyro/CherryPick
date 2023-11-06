@@ -68,7 +68,8 @@ public class CherryPicker(string? scope = null)
         }
     }
 
-    static float MatchRatioInsensitive(string result, string match)
+    // Out of the total string length, how many characters actually match the query. Gives decent results.
+    static float MatchRatioInsensitive(string result, string match) 
     {
         bool contains = result.IndexOf(match, StringComparison.OrdinalIgnoreCase) >= 0;
 
@@ -142,7 +143,7 @@ public class CherryPicker(string? scope = null)
             {
                 constructed = WorkerManager.GetType(typeName);
             }
-            catch (Exception) { }; // Lazy way to get around accidentally making types with too few parameters
+            catch (Exception) { }; // Lazy way to get around accidentally making types with too few parameters... Probably bad. I think. Possibly.
 
             if (constructed != null)
             {
@@ -153,6 +154,7 @@ public class CherryPicker(string? scope = null)
         }
     }
 
+    // One day we will have better UI construction... one day :')
     private Button CreateButton(WorkerDetails detail, ButtonEventHandler<string> pressed, string arg, UIBuilder builder, TextEditor editor, Slot searchRoot, Slot defaultRoot, colorX col)
     {
         string path = Scope != null ? detail.Path.Replace(Scope, null) : detail.Path;
