@@ -50,36 +50,35 @@ public class CherryPick : ResoniteMod
 
             builder.VerticalLayout(7.28605f, 7.28605f); // UI design magic funny look-good values.
             builder.Style.MinHeight = 64f;
-            var field = builder.TextField(null, true, "Undo text field search", true, $"<alpha=#77>Search...");
+            builder.HorizontalLayout(7.28605f);
+            builder.Style.MinWidth = 64f;
+            builder.Style.FlexibleWidth = 1f;
+            var field = builder.TextField(null, true, "Undo text field search", true, $"<alpha=#77>Search..."); // Make the search field
 
+            builder.Style.FlexibleWidth = 0f;
+
+            Button nullButton = builder.Button("∅");
+            SmoothButton(nullButton);
+
+            builder.NestOut();
+
+            // Small tweak to make the caret smoothly blink
             var smooth = field.Slot.AttachComponent<SmoothValue<colorX>>();
-
             smooth.Value.Target = field.Text.CaretColor;
             smooth.WriteBack.Value = true;
             smooth.Speed.Value = 12f;
             
-
             Button button = field.Slot.GetComponent<Button>();
-            FieldDrive<colorX>? driver = button.ColorDrivers.FirstOrDefault()?.ColorDrive;
-            IField<colorX>? targetField = driver?.Target;
+            SmoothButton(button);
 
-            if (driver != null && driver.Target != null)
-            {
-                smooth = field.Slot.AttachComponent<SmoothValue<colorX>>();
-                smooth.TargetValue.Value = driver.Target.Value;
-                driver.Target = smooth.TargetValue;
-                smooth.Value.Target = targetField;
-                smooth.Speed.Value = 12f;             
-            }
-
-
+            // Finish up the field text sizing, also prepare for the actual component build area
             field.Text.HorizontalAutoSize.Value = true;
             field.Text.Size.Value = 39.55418f;
             field.Text.Color.Value = RadiantUI_Constants.Neutrals.LIGHT;
             field.Editor.Target.FinishHandling.Value = TextEditor.FinishAction.NullOnWhitespace;
             builder.Style.FlexibleHeight = 1f;
 
-
+            // Make an overlapping layout so we can easily disable and enable the area where components are searched
             builder.OverlappingLayout(0f);
             builder.ScrollArea();
             Slot searchRoot = builder.Root;
@@ -88,7 +87,7 @@ public class CherryPick : ResoniteMod
             
             searchRoot.ActiveSelf = false;
 
-
+            // Back up a bit and make the area for the normal component browser UI to generate
             builder.NestOut();
             builder.ScrollArea();
             builder.VerticalLayout(7.28605f, 7.28605f);
@@ -108,11 +107,33 @@ public class CherryPick : ResoniteMod
 
             field.Editor.Target.LocalEditingStarted += c => picker.EditStart(searchRoot, ____uiRoot, picker, ____rootPath);
 
-            field.Editor.Target.LocalEditingChanged += c => picker.EditChanged(field.Editor, searchRoot, ____uiRoot, searchBuilder, onGenericPressed, onAddPressed);
+            field.Editor.Target.LocalEditingChanged += c => picker.EditChanged(c, searchRoot, ____uiRoot, searchBuilder, onGenericPressed, onAddPressed);
 
             field.Editor.Target.LocalEditingFinished += c => picker.EditFinished(c, searchRoot, ____uiRoot);
-            
+
+            nullButton.LocalPressed += (b, d) =>
+            {
+                field.Text.Content.Value = null;
+                field.Editor.Target.ForceEditingChangedEvent();
+            };
+
             return false;
+        }
+
+        static void SmoothButton(Button b, float speed = 12f)
+        {
+            FieldDrive<colorX>? driver = b.ColorDrivers.FirstOrDefault()?.ColorDrive;
+            IField<colorX>? targetField = driver?.Target;
+
+            // Make the button smoooooooth
+            if (driver != null && driver.Target != null)
+            {
+                var smooth = b.Slot.AttachComponent<SmoothValue<colorX>>();
+                smooth.TargetValue.Value = driver.Target.Value;
+                driver.Target = smooth.TargetValue;
+                smooth.Value.Target = targetField;
+                smooth.Speed.Value = speed;             
+            }
         }
     }
 }

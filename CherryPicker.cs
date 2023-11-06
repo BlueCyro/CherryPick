@@ -165,7 +165,7 @@ public class CherryPicker(string? scope = null)
             button.LocalPressed += (b, d) => EditFinished(editor, searchRoot, defaultRoot, true);
         
         var text = (Text)button.LabelTextField.Parent;
-        text.Size.Value = 24.44582f;
+        text.Size.Value = 24.44582f; 
 
         var smooth = button.Slot.AttachComponent<SmoothValue<colorX>>();
         IField<colorX> target = button.ColorDrivers.First().ColorDrive.Target;
