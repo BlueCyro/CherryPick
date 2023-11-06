@@ -4,12 +4,12 @@ CherryPick is a no-nonsense, straight-to-the-point component searcher mod for [R
 
 With CherryPick, your component browser gains a new element at the top: a search bar!
 
-![Search bar](image.png)
+<img src="image.png" width="400">
 
 Simply start typing the name of the component you're looking for and the top ten results will appear immediately!
 
-![Search bar functionality demonstration](Resonite_pm9oFaDfHo.gif)
+<img src="Resonite_pm9oFaDfHo.gif" width="250">
 
 CherryPick also supports generic typing as well! You can insert generic arguments for the first generic type in the list like so:
 
-![Generic typing demonstration](Resonite_MpNIjXzyrg.gif)
+<img src="Resonite_MpNIjXzyrg.gif" width=350>
