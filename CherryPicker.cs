@@ -27,6 +27,9 @@ public class CherryPicker(string? scope = null)
     {
         foreach (var worker in WorkerInitializer.Workers)
         {
+            if (!typeof(Component).IsAssignableFrom(worker))
+                continue;
+            
             string? path = worker.GetCustomAttribute<CategoryAttribute>()?.Paths[0];
             var detail = new WorkerDetails(worker.GetNiceName(), path, worker);
 
@@ -34,6 +37,7 @@ public class CherryPicker(string? scope = null)
         }
     }
 
+    // Makes a new pre-filtered list that is scoped to whatever the string is. This is somewhat heavy, so it's done when the mod initializes.
     public static void WarmScope(string? scope = null)
     {
         if (!string.IsNullOrEmpty(scope) && !_pathCache.ContainsKey(scope!))
@@ -50,6 +54,7 @@ public class CherryPicker(string? scope = null)
     {
         _results.Clear();
 
+        // Occam's razor on this fellas. Sometimes the simplest solution is the right one. This takes like 3-7ms for the first sweep, then 0ms on subsequent queries. Wacky.
         var results = Workers
             .Select(w => new { worker = w, ratio = MatchRatioInsensitive(w.Key, query) })
             .Where(x => x.ratio > 0f)
@@ -110,9 +115,11 @@ public class CherryPicker(string? scope = null)
         if (txt == null)
             return;
 
-        searchRoot.DestroyChildren();
+
         int tickIndex = txt.IndexOf('`');
         string matchTxt = tickIndex > 0 ? txt.Substring(0, tickIndex) : txt;
+
+        searchRoot.DestroyChildren();
         PerformMatch(matchTxt);
 
         foreach (var result in _results)
@@ -128,16 +135,14 @@ public class CherryPicker(string? scope = null)
         if (firstGeneric.Type != null && tickIndex > 0)
         {
             string newTxt = txt.Substring(MathX.Clamp(tickIndex + 2, 0, txt.Length));
-            CherryPick.Msg(newTxt);
             string typeName = firstGeneric.Type.FullName + newTxt;
             Type? constructed = null;
+
             try
             {
                 constructed = WorkerManager.GetType(typeName);
             }
             catch (Exception) { }; // Lazy way to get around accidentally making types with too few parameters
-
-            CherryPick.Msg(typeName);
 
             if (constructed != null)
             {
