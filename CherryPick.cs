@@ -17,6 +17,15 @@ public class CherryPick : ResoniteMod
     public override string Link => "resonite.com";
     public static ModConfiguration? Config;
 
+    [AutoRegisterConfigKey]
+    public static ModConfigurationKey<bool> Enabled = new("Enabled", "When checked, enables CherryPick", () => true);
+
+    [AutoRegisterConfigKey]
+    public static ModConfigurationKey<bool> SingleClick = new("Single-click search result buttons", "When checked, search results will only require a single click to select. Otherwise, double click", () => true);
+   
+    [AutoRegisterConfigKey]
+    public static ModConfigurationKey<bool> OverrideSelectorName = new("Selector flair", "When checked, enables a small flair on the slot name of the selector. Disable if this causes issues", () => true);
+
     public override void OnEngineInit()
     {
         Harmony harmony = new("net.Cyro.CherryPick");
@@ -35,12 +44,20 @@ public class CherryPick : ResoniteMod
         [HarmonyPatch("SetupUI")]
         public static bool SetupUI_Prefix(ComponentSelector __instance, LocaleString title, float2 size, SyncRef<Slot> ____uiRoot, Sync<string> ____rootPath)
         {
+            if (!Config!.GetValue(Enabled))
+                return true;
+            
             var onAddPressed = __instance.GetType().GetMethod("OnAddComponentPressed", BindingFlags.NonPublic | BindingFlags.Instance)?.CreateDelegate<ButtonEventHandler<string>>(__instance);
             var onGenericPressed = __instance.GetType().GetMethod("OpenGenericTypesPressed", BindingFlags.NonPublic | BindingFlags.Instance)?.CreateDelegate<ButtonEventHandler<string>>(__instance);
 
             if (onAddPressed == null || onGenericPressed == null)
                 return true;
             
+            // Yeah.
+            if (Config!.GetValue(OverrideSelectorName))
+                __instance.Slot.Name = $"<color=hero.green>🍃</color><color=hero.red>🍒</color> {__instance.LocalUser.UserName}'s CherryPicked {__instance.Slot.Name}";
+            
+
             var builder = RadiantUI_Panel.SetupPanel(__instance.Slot, title, size, true, true);
             RadiantUI_Constants.SetupEditorStyle(builder, true);
             builder.Style.TextAlignment = Alignment.MiddleLeft;
