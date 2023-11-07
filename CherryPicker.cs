@@ -158,7 +158,8 @@ public class CherryPicker(string? scope = null)
     {
         string path = Scope != null ? detail.Path.Replace(Scope, null) : detail.Path;
 
-        var button = builder.Button($"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, 0f);
+        float pressDelay = CherryPick.Config!.GetValue(CherryPick.SingleClick) ? 0f : 0.35f;
+        var button = builder.Button($"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, pressDelay);
 
         if (detail.Type.IsGenericTypeDefinition)
             button.LocalPressed += (b, d) => EditFinished(editor, searchRoot, defaultRoot, true);
