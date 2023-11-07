@@ -11,7 +11,7 @@ namespace CherryPick;
 
 public class CherryPick : ResoniteMod
 {
-    public override string Name => "CherryPick";
+    public override string Name => "<color=hero.green>🍃</color><color=hero.red>🍒</color> CherryPick"; // May remove this flair if it gets obnoxious
     public override string Author => "Cyro";
     public override string Version => "1.0.0";
     public override string Link => "resonite.com";
@@ -24,7 +24,7 @@ public class CherryPick : ResoniteMod
     public static ModConfigurationKey<bool> SingleClick = new("Single-click search result buttons", "When checked, search results will only require a single click to select. Otherwise, double click", () => true);
    
     [AutoRegisterConfigKey]
-    public static ModConfigurationKey<bool> OverrideSelectorName = new("Selector flair", "When checked, enables a small flair on the slot name of the selector. Disable if this causes issues", () => true);
+    public static ModConfigurationKey<bool> SelectorFlair = new("Selector flair", "When checked, enables a small flair on the slot name of the selector. Disable if this causes issues", () => true);
 
     public override void OnEngineInit()
     {
@@ -54,7 +54,7 @@ public class CherryPick : ResoniteMod
                 return true;
             
             // Yeah.
-            if (Config!.GetValue(OverrideSelectorName))
+            if (Config!.GetValue(SelectorFlair))
                 __instance.Slot.Name = $"<color=hero.green>🍃</color><color=hero.red>🍒</color> {__instance.LocalUser.UserName}'s CherryPicked {__instance.Slot.Name}";
             
 
