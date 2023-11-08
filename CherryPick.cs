@@ -13,8 +13,8 @@ public class CherryPick : ResoniteMod
 {
     public override string Name => "<color=hero.green>🍃</color><color=hero.red>🍒</color> CherryPick"; // May remove this flair if it gets obnoxious
     public override string Author => "Cyro";
-    public override string Version => "1.0.2";
-    public override string Link => "resonite.com";
+    public override string Version => "1.0.3";
+    public override string Link => "https://github.com/RileyGuy/CherryPick";
     public static ModConfiguration? Config;
 
     [AutoRegisterConfigKey]
