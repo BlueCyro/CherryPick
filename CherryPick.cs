@@ -36,11 +36,10 @@ public class CherryPick : ResoniteMod
         CherryPicker.WarmScope(ProtoFluxHelper.PROTOFLUX_ROOT);
     }
 
-    [HarmonyPatch(typeof(ComponentSelector))]
+    [HarmonyPatch(typeof(ComponentSelector), "SetupUI")]
     public static class ComponentSelector_Patcher
     {
         [HarmonyPrefix]
-        [HarmonyPatch("SetupUI")]
         public static bool SetupUI_Prefix(ComponentSelector __instance, LocaleString title, float2 size, SyncRef<Slot> ____uiRoot, Sync<string> ____rootPath)
         {
             if (!Config!.GetValue(Enabled))
