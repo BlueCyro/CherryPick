@@ -4,7 +4,6 @@ using System.Reflection;
 using FrooxEngine;
 using Elements.Core;
 using FrooxEngine.UIX;
-using MonoMod.Utils;
 using FrooxEngine.ProtoFlux;
 
 namespace CherryPick;
@@ -37,18 +36,17 @@ public class CherryPick : ResoniteMod
         CherryPicker.WarmScope(ProtoFluxHelper.PROTOFLUX_ROOT);
     }
 
-    [HarmonyPatch(typeof(ComponentSelector))]
+    [HarmonyPatch(typeof(ComponentSelector), "SetupUI")]
     public static class ComponentSelector_Patcher
     {
         [HarmonyPrefix]
-        [HarmonyPatch("SetupUI")]
         public static bool SetupUI_Prefix(ComponentSelector __instance, LocaleString title, float2 size, SyncRef<Slot> ____uiRoot, Sync<string> ____rootPath)
         {
             if (!Config!.GetValue(Enabled))
                 return true;
             
-            var onAddPressed = __instance.GetType().GetMethod("OnAddComponentPressed", BindingFlags.NonPublic | BindingFlags.Instance)?.CreateDelegate<ButtonEventHandler<string>>(__instance);
-            var onGenericPressed = __instance.GetType().GetMethod("OpenGenericTypesPressed", BindingFlags.NonPublic | BindingFlags.Instance)?.CreateDelegate<ButtonEventHandler<string>>(__instance);
+            var onAddPressed = __instance.GetType().GetMethod("OnAddComponentPressed", BindingFlags.NonPublic | BindingFlags.Instance)?.CreateDelegate(typeof(ButtonEventHandler<string>), __instance) as ButtonEventHandler<string>;
+            var onGenericPressed = __instance.GetType().GetMethod("OpenGenericTypesPressed", BindingFlags.NonPublic | BindingFlags.Instance)?.CreateDelegate(typeof(ButtonEventHandler<string>), __instance) as ButtonEventHandler<string>;
 
             if (onAddPressed == null || onGenericPressed == null)
                 return true;
