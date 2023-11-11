@@ -31,9 +31,13 @@ public class CherryPick : ResoniteMod
         Config = GetConfiguration();
         Config?.Save(true);
         harmony.PatchAll();
-        
-        CherryPicker.WarmScope(); // Initialize class to warm up those code paths all nice and toasty (so we don't hitch when first spawning a component selector)
-        CherryPicker.WarmScope(ProtoFluxHelper.PROTOFLUX_ROOT);
+
+        // Scan for workers only after FrooxEngine is fully initialized
+        Engine.Current.RunPostInit(() =>
+        {
+            CherryPicker.WarmScope(); // Initialize class to warm up those code paths all nice and toasty (so we don't hitch when first spawning a component selector)
+            CherryPicker.WarmScope(ProtoFluxHelper.PROTOFLUX_ROOT);
+        });
     }
 
     [HarmonyPatch(typeof(ComponentSelector), "SetupUI")]
