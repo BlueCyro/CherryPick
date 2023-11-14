@@ -17,9 +17,9 @@ public class CherryPicker(string? scope = null)
         }
     }
 
-    public Dictionary<string, WorkerDetails> Workers => scope != null ? _pathCache[scope] : _allWorkers;
-    private static readonly Dictionary<string, Dictionary<string, WorkerDetails>> _pathCache = new();
-    private static readonly Dictionary<string, WorkerDetails> _allWorkers = new();
+    public List<WorkerDetails> Workers => scope != null ? _pathCache[scope] : _allWorkers;
+    private static readonly Dictionary<string, List<WorkerDetails>> _pathCache = new();
+    private static readonly  List<WorkerDetails> _allWorkers = new();
     private readonly List<WorkerDetails> _results = new();
 
     static CherryPicker()
@@ -32,7 +32,7 @@ public class CherryPicker(string? scope = null)
             string? path = worker.GetCustomAttribute<CategoryAttribute>()?.Paths[0];
             var detail = new WorkerDetails(worker.GetNiceName(), path, worker);
 
-            _allWorkers[detail.Name.ToLower()] = detail;
+            _allWorkers.Add(detail);
         }
     }
 
@@ -42,8 +42,8 @@ public class CherryPicker(string? scope = null)
         if (!string.IsNullOrEmpty(scope) && !_pathCache.ContainsKey(scope!))
         {
             var filteredDict = _allWorkers
-                                .Where(w => w.Value.Path.StartsWith(scope))
-                                .ToDictionary(p => p.Key, p => p.Value);
+                                .Where(w => w.Path.StartsWith(scope))
+                                .ToList();
 
             _pathCache.Add(scope!, filteredDict);
         }
@@ -55,11 +55,11 @@ public class CherryPicker(string? scope = null)
 
         // Occam's razor on this fellas. Sometimes the simplest solution is the right one. This takes like 3-7ms for the first sweep, then 0ms on subsequent queries. Wacky.
         var results = Workers
-            .Select(w => new { worker = w, ratio = MatchRatioInsensitive(w.Key, query) })
+            .Select(w => new { worker = w, ratio = MatchRatioInsensitive(w.LowerName, query) })
             .Where(x => x.ratio > 0f)
             .OrderByDescending(x => x.ratio)
             .Take(resultCount)
-            .Select(x => x.worker.Value);
+            .Select(x => x.worker);
         
         foreach (var w in results)
         {
@@ -68,8 +68,11 @@ public class CherryPicker(string? scope = null)
     }
 
     // Out of the total string length, how many characters actually match the query. Gives decent results.
-    static float MatchRatioInsensitive(string result, string match) 
+    static float MatchRatioInsensitive(string? result, string match) 
     {
+        if (result == null)
+            return 0f;
+        
         bool contains = result.IndexOf(match, StringComparison.OrdinalIgnoreCase) >= 0;
 
         return contains ? (float)match.Length / result.Length : 0f;
@@ -120,7 +123,10 @@ public class CherryPicker(string? scope = null)
         string matchTxt = tickIndex > 0 ? txt.Substring(0, tickIndex) : txt;
 
         searchRoot.DestroyChildren();
-        PerformMatch(matchTxt);
+        int resultCount = CherryPick.Config!.GetValue(CherryPick.ResultCount);
+        resultCount = resultCount <= 40 ? resultCount : 40;
+
+        PerformMatch(matchTxt, resultCount);
 
         foreach (var result in _results)
         {
@@ -160,6 +166,8 @@ public class CherryPicker(string? scope = null)
 
         float pressDelay = CherryPick.Config!.GetValue(CherryPick.SingleClick) ? 0f : 0.35f;
         var button = builder.Button($"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, pressDelay);
+        
+        button.ClearFocusOnPress.Value = CherryPick.Config!.GetValue(CherryPick.ClearFocus);
 
         if (detail.Type.IsGenericTypeDefinition)
             button.LocalPressed += (b, d) => EditFinished(editor, searchRoot, defaultRoot, true);

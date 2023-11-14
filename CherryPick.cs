@@ -25,6 +25,12 @@ public class CherryPick : ResoniteMod
     [AutoRegisterConfigKey]
     public static ModConfigurationKey<bool> SelectorFlair = new("Selector flair", "When checked, enables a small flair on the slot name of the selector. Disable if this causes issues", () => true);
 
+    [AutoRegisterConfigKey]
+    public static ModConfigurationKey<int> ResultCount = new("Result count", "How many results to show when searching (clamped to 40)", () => 10);
+
+    [AutoRegisterConfigKey]
+    public static ModConfigurationKey<bool> ClearFocus = new("Clear focus", "When checked, the search buttons will clear the focus of the search bar.", () => true);
+
     public override void OnEngineInit()
     {
         Harmony harmony = new("net.Cyro.CherryPick");
