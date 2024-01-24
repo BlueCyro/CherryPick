@@ -12,7 +12,7 @@ public class CherryPick : ResoniteMod
 {
     public override string Name => "<color=hero.green>🍃</color><color=hero.red>🍒</color> CherryPick"; // May remove this flair if it gets obnoxious
     public override string Author => "Cyro";
-    public override string Version => "1.0.3";
+    public override string Version => typeof(CherryPick).Assembly.GetName().Version.ToString();
     public override string Link => "resonite.com";
     public static ModConfiguration? Config;
 
@@ -20,8 +20,10 @@ public class CherryPick : ResoniteMod
     public static ModConfigurationKey<bool> Enabled = new("Enabled", "When checked, enables CherryPick", () => true);
 
     [AutoRegisterConfigKey]
-    public static ModConfigurationKey<bool> SingleClick = new("Single-click search result buttons", "When checked, search results will only require a single click to select. Otherwise, double click", () => true);
-   
+    public static ModConfigurationKey<bool> SingleClick_Config = new("Single-click search result buttons", "When checked, search results will only require a single click to select. Otherwise, double click", () => true);
+    public static float PressDelay => Config!.GetValue(SingleClick_Config) ? 0f : 0.35f;
+    public static bool SingleClick => Config!.GetValue(SingleClick_Config);
+
     [AutoRegisterConfigKey]
     public static ModConfigurationKey<bool> SelectorFlair = new("Selector flair", "When checked, enables a small flair on the slot name of the selector. Disable if this causes issues", () => true);
 
@@ -41,8 +43,12 @@ public class CherryPick : ResoniteMod
         // Scan for workers only after FrooxEngine is fully initialized
         Engine.Current.RunPostInit(() =>
         {
-            CherryPicker.WarmScope(); // Initialize class to warm up those code paths all nice and toasty (so we don't hitch when first spawning a component selector)
-            CherryPicker.WarmScope(ProtoFluxHelper.PROTOFLUX_ROOT);
+            Task.Run(() =>
+            {
+                CherryPicker.WarmScope(); // Initialize class to warm up those code paths all nice and toasty (so we don't hitch when first spawning a component selector)
+                CherryPicker.WarmScope(ProtoFluxHelper.PROTOFLUX_ROOT);
+                CherryPicker.SetReady();
+            });
         });
     }
 

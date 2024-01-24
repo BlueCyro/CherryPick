@@ -5,10 +5,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
+    <Version>1.0.4</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <Authors>Cyro</Authors>
+    <Product>CherryPick Component Searcher</Product>
+    <Description>Searchbar for component browsers in Resonite</Description>
+    <Copyright>Copyright (c) 2023 Riley Fields</Copyright>
   </PropertyGroup>
 
+  <!--This will test for the default Steam installation paths for Resonite on Windows and Linux.-->
   <PropertyGroup Condition="'$(ResonitePath)'==''">
-    <ResonitePath Condition="Exists('C:\Program Files (x86)\Steam\steamapps\common\Resonite\')">C:\Program Files (x86)\Steam\steamapps\common\Resonite\</ResonitePath>
+    <ResonitePath Condition="'$(OS)' == 'Windows_NT' and Exists('C:\Program Files (x86)\Steam\steamapps\common\Resonite\')">C:\Program Files (x86)\Steam\steamapps\common\Resonite\</ResonitePath> 
+    <ResonitePath Condition="'$(OS)' != 'Windows_NT' and Exists('$(HOME)/.local/share/Steam/steamapps/common/Resonite/')">$(HOME)/.local/share/Steam/steamapps/common/Resonite/</ResonitePath>
+    <!--If neither path above exists, you can define your custom Resonite install directory here -->
+    <ResonitePath Condition="'$(ResonitePath)'==''">/Custom/Resonite/Install/Path</ResonitePath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(DestinationFolder)'==''">

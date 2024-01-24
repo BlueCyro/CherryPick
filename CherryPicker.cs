@@ -17,6 +17,7 @@ public class CherryPicker(string? scope = null)
         }
     }
 
+    public static bool IsReady { get; private set; }
     public List<WorkerDetails> Workers => scope != null ? _pathCache[scope] : _allWorkers;
     private static readonly Dictionary<string, List<WorkerDetails>> _pathCache = new();
     private static readonly  List<WorkerDetails> _allWorkers = new();
@@ -34,6 +35,11 @@ public class CherryPicker(string? scope = null)
 
             _allWorkers.Add(detail);
         }
+    }
+
+    public static void SetReady()
+    {
+        IsReady = true;
     }
 
     // Makes a new pre-filtered list that is scoped to whatever the string is. This is somewhat heavy, so it's done when the mod initializes.
@@ -111,9 +117,11 @@ public class CherryPicker(string? scope = null)
             editor == null ||
             onGenericPressed == null ||
             onAddPressed == null || 
-            searchBuilder == null)
+            searchBuilder == null ||
+            !IsReady // You can't search until the cache is built! This is fine in most cases, but if you end up searching before then, too bad!
+        )
                 return;
-        
+            
         string txt = editor.Text.Target.Text;
         if (txt == null)
             return;
@@ -164,13 +172,22 @@ public class CherryPicker(string? scope = null)
     {
         string path = Scope != null ? detail.Path.Replace(Scope, null) : detail.Path;
 
-        float pressDelay = CherryPick.Config!.GetValue(CherryPick.SingleClick) ? 0f : 0.35f;
-        var button = builder.Button($"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, pressDelay);
+        var button = builder.Button($"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, CherryPick.PressDelay);
+        ValueField<double> lastPressed = button.Slot.AddSlot("LastPressed").AttachComponent<ValueField<double>>();
         
         button.ClearFocusOnPress.Value = CherryPick.Config!.GetValue(CherryPick.ClearFocus);
 
         if (detail.Type.IsGenericTypeDefinition)
-            button.LocalPressed += (b, d) => EditFinished(editor, searchRoot, defaultRoot, true);
+        {
+            button.LocalPressed += (b, d) =>
+            {
+                double now = searchRoot.World.Time.WorldTime;
+                if (now - lastPressed.Value < CherryPick.PressDelay || CherryPick.SingleClick)
+                    EditFinished(editor, searchRoot, defaultRoot, true);
+                else
+                    lastPressed.Value.Value = now;
+            };
+        }
         
         var text = (Text)button.LabelTextField.Parent;
         text.Size.Value = 24.44582f; 
