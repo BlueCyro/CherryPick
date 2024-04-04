@@ -37,10 +37,14 @@ public class CherryPicker(string? scope = null)
         }
     }
 
+
+
     public static void SetReady()
     {
         IsReady = true;
     }
+
+
 
     // Makes a new pre-filtered list that is scoped to whatever the string is. This is somewhat heavy, so it's done when the mod initializes.
     public static void WarmScope(string? scope = null)
@@ -54,6 +58,8 @@ public class CherryPicker(string? scope = null)
             _pathCache.Add(scope!, filteredDict);
         }
     }
+
+
 
     public void PerformMatch(string query, int resultCount = 10)
     {
@@ -73,6 +79,8 @@ public class CherryPicker(string? scope = null)
         }
     }
 
+
+
     // Out of the total string length, how many characters actually match the query. Gives decent results.
     static float MatchRatioInsensitive(string? result, string match) 
     {
@@ -84,6 +92,8 @@ public class CherryPicker(string? scope = null)
         return contains ? (float)match.Length / result.Length : 0f;
     }
 
+
+
     public void EditStart(Slot searchRoot, Slot defaultRoot, CherryPicker picker, Sync<string> scope)
     {
         picker.Scope = scope;
@@ -93,6 +103,8 @@ public class CherryPicker(string? scope = null)
             searchRoot.ActiveSelf = true;
         }
     }
+
+
 
     public void EditFinished(TextEditor editor, Slot searchRoot, Slot defaultRoot, bool forceFinish = false)
     {
@@ -109,6 +121,8 @@ public class CherryPicker(string? scope = null)
             searchRoot.ActiveSelf = false;
         }
     }
+
+
 
     public void EditChanged(TextEditor editor, Slot searchRoot, Slot defaultRoot, UIBuilder searchBuilder, ButtonEventHandler<string> onGenericPressed, ButtonEventHandler<string> onAddPressed)
     {
@@ -166,6 +180,8 @@ public class CherryPicker(string? scope = null)
             }
         }
     }
+
+
 
     // One day we will have better UI construction... one day :')
     private Button CreateButton(WorkerDetails detail, ButtonEventHandler<string> pressed, string arg, UIBuilder builder, TextEditor editor, Slot searchRoot, Slot defaultRoot, colorX col)

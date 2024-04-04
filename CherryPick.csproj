@@ -12,7 +12,9 @@
     <Authors>Cyro</Authors>
     <Product>CherryPick Component Searcher</Product>
     <Description>Searchbar for component browsers in Resonite</Description>
-    <Copyright>Copyright (c) 2023 Riley Fields</Copyright>
+    <Copyright>Copyright (c) 2024 Riley Fields</Copyright>
+
+    <ReleaseBuild>./ReleaseBuild/</ReleaseBuild>
   </PropertyGroup>
 
   <!--This will test for the default Steam installation paths for Resonite on Windows and Linux.-->
@@ -48,8 +50,27 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Copy SourceFiles="$(OutDir)$(TargetFileName)" DestinationFolder="$(DestinationFolder)" />
-    <!--Exec Command="C:\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite.exe -Screen -screen-fullscreen 1 -DontAutoOpenCloudHome -CachePath C:\Resonite\Cache -DataPath C:\Resonite\Data -CTAATemporalEdgePower 1.0 -CTAASharpnessEnabled False -CTAAAdaptiveSharpness 0.4 -LoadAssembly Libraries\ResoniteModLoader.dll" /-->
+    <Copy SourceFiles="$(OutDir)$(TargetFileName)" DestinationFolder="$(ResonitePath)rml_mods" />
   </Target>
 
+
+  <Target Name="MoveBinary" AfterTargets="Publish">
+    <Copy SourceFiles="$(PublishDir)$(TargetFileName)" DestinationFolder="$(ReleaseBuild)" />
+  </Target>
+
+
+  <Target Name="DeepClean" AfterTargets="Clean">
+    <RemoveDir Directories="./bin" />
+    <RemoveDir Directories="./obj" />
+
+
+    <ItemGroup>
+      <FilesToDelete Include="$(ReleaseBuild)**/*" />
+    </ItemGroup>
+
+
+    <Delete Files="@(FilesToDelete)" />
+    <Exec Command="dotnet restore" />
+  </Target>
+  
 </Project>
