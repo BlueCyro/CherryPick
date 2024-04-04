@@ -87,9 +87,14 @@ public class CherryPicker(string? scope = null)
         if (result == null)
             return 0f;
         
-        bool contains = result.IndexOf(match, StringComparison.OrdinalIgnoreCase) >= 0;
+        var contains = match.Split(' ').Select(item => (item, score: result.IndexOf(item, StringComparison.OrdinalIgnoreCase)));
+        
+        var score = contains
+                    .Where(v => v.score >= 0)
+                    .Select((v, i) => (v.item, v.score, i))
+                    .Sum((v) => (float)v.item.Length / (result.Length + v.i + 1));
 
-        return contains ? (float)match.Length / result.Length : 0f;
+        return contains.All(v => v.score >= 0) ? score : 0f;
     }
 
 
