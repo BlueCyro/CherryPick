@@ -2,6 +2,7 @@ using System.Reflection;
 using FrooxEngine;
 using Elements.Core;
 using FrooxEngine.UIX;
+using static CherryPick.CherryPick;
 
 namespace CherryPick;
 
@@ -19,9 +20,12 @@ public class CherryPicker(string? scope = null)
 
     public static bool IsReady { get; private set; }
     public List<WorkerDetails> Workers => scope != null ? _pathCache[scope] : _allWorkers;
-    private static readonly Dictionary<string, List<WorkerDetails>> _pathCache = new();
-    private static readonly  List<WorkerDetails> _allWorkers = new();
-    private readonly List<WorkerDetails> _results = new();
+    private static readonly Dictionary<string, List<WorkerDetails>> _pathCache = [];
+    private static readonly List<WorkerDetails> _allWorkers = [];
+    private readonly List<WorkerDetails> _results = [];
+
+
+
 
     static CherryPicker()
     {
@@ -30,7 +34,9 @@ public class CherryPicker(string? scope = null)
             if (!typeof(Component).IsAssignableFrom(worker))
                 continue;
             
-            string? path = worker.GetCustomAttribute<CategoryAttribute>()?.Paths[0];
+            WorkerInitInfo info = worker.GetInitInfo();
+
+            string? path = info.CategoryPath;
             var detail = new WorkerDetails(worker.GetNiceName(), path, worker);
 
             _allWorkers.Add(detail);
@@ -92,16 +98,16 @@ public class CherryPicker(string? scope = null)
         var score = contains
                     .Where(v => v.score >= 0)
                     .Select((v, i) => (v.item, v.score, i))
-                    .Sum((v) => (float)v.item.Length / (result.Length + v.i + 1));
+                    .Sum((v) => v.item.Length / (result.Length + v.i + 1f));
 
         return contains.All(v => v.score >= 0) ? score : 0f;
     }
 
 
 
-    public void EditStart(Slot searchRoot, Slot defaultRoot, CherryPicker picker, Sync<string> scope)
+    public void EditStart(Slot searchRoot, Slot defaultRoot, Sync<string> scope)
     {
-        picker.Scope = scope;
+        Scope = scope;
         if (defaultRoot != null && searchRoot != null)
         {
             defaultRoot.ActiveSelf = false;
@@ -137,10 +143,10 @@ public class CherryPicker(string? scope = null)
             onGenericPressed == null ||
             onAddPressed == null || 
             searchBuilder == null ||
-            !IsReady // You can't search until the cache is built! This is fine in most cases, but if you end up searching before then, too bad!
-        )
+            !IsReady) // You can't search until the cache is built! This is fine in most cases, but if you end up searching before then, too bad!
                 return;
-            
+
+        
         string txt = editor.Text.Target.Text;
         if (txt == null)
             return;
@@ -149,12 +155,13 @@ public class CherryPicker(string? scope = null)
         int tickIndex = txt.IndexOf('`');
         string matchTxt = tickIndex > 0 ? txt.Substring(0, tickIndex) : txt;
 
+
         searchRoot.DestroyChildren();
-        int resultCount = CherryPick.Config!.GetValue(CherryPick.ResultCount);
-        resultCount = resultCount <= 40 ? resultCount : 40;
+        int resultCount = Config!.GetValue(ResultCount);
+        resultCount = MathX.Min(resultCount, MAX_RESULT_COUNT);
+
 
         PerformMatch(matchTxt, resultCount);
-
         foreach (var result in _results)
         {
             string arg = result.Type.IsGenericTypeDefinition ? Path.Combine(result.Path, result.Type.FullName) : result.Type.FullName;
@@ -163,8 +170,8 @@ public class CherryPicker(string? scope = null)
             CreateButton(result, pressed, arg, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.CYAN);
         }
 
-        WorkerDetails firstGeneric = _results.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
 
+        WorkerDetails firstGeneric = _results.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
         if (firstGeneric.Type != null && tickIndex > 0)
         {
             string newTxt = txt.Substring(MathX.Clamp(tickIndex + 2, 0, txt.Length));
@@ -193,10 +200,11 @@ public class CherryPicker(string? scope = null)
     {
         string path = Scope != null ? detail.Path.Replace(Scope, null) : detail.Path;
 
+
         var button = builder.Button($"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, CherryPick.PressDelay);
         ValueField<double> lastPressed = button.Slot.AddSlot("LastPressed").AttachComponent<ValueField<double>>();
-        
         button.ClearFocusOnPress.Value = CherryPick.Config!.GetValue(CherryPick.ClearFocus);
+
 
         if (detail.Type.IsGenericTypeDefinition)
         {
@@ -210,16 +218,20 @@ public class CherryPicker(string? scope = null)
             };
         }
         
+
         var text = (Text)button.LabelTextField.Parent;
         text.Size.Value = 24.44582f; 
+
 
         var smooth = button.Slot.AttachComponent<SmoothValue<colorX>>();
         IField<colorX> target = button.ColorDrivers.First().ColorDrive.Target;
         smooth.TargetValue.Value = target.Value;
 
+
         button.ColorDrivers.First().ColorDrive.Target = smooth.TargetValue;
         smooth.Value.Target = target;
         smooth.Speed.Value = 12f;
+
 
         return button;
     }

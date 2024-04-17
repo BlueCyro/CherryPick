@@ -1,15 +1,11 @@
-using HarmonyLib;
 using ResoniteModLoader;
-using System.Reflection;
-using FrooxEngine;
-using Elements.Core;
-using FrooxEngine.UIX;
-using FrooxEngine.ProtoFlux;
 
 namespace CherryPick;
 
 public partial class CherryPick : ResoniteMod
 {
+    public const int MAX_RESULT_COUNT = 120;
+
     [AutoRegisterConfigKey]
     public static ModConfigurationKey<bool> Enabled = new("Enabled", "When checked, enables CherryPick", () => true);
 
@@ -22,7 +18,7 @@ public partial class CherryPick : ResoniteMod
     public static ModConfigurationKey<bool> SelectorFlair = new("Selector flair", "When checked, enables a small flair on the slot name of the selector. Disable if this causes issues", () => true);
 
     [AutoRegisterConfigKey]
-    public static ModConfigurationKey<int> ResultCount = new("Result count", "How many results to show when searching (clamped to 40)", () => 10);
+    public static ModConfigurationKey<int> ResultCount = new("Result count", $"How many results to show when searching (clamped to {MAX_RESULT_COUNT})", () => 10);
 
     [AutoRegisterConfigKey]
     public static ModConfigurationKey<bool> ClearFocus = new("Clear focus", "When checked, the search buttons will clear the focus of the search bar.", () => true);
