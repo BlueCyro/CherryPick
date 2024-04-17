@@ -8,6 +8,6 @@ public static class WorkerInitializer_Reverse_Patches
 {
 
     [HarmonyReversePatch]
-    [HarmonyPatch("GetInitInfo")]
+    [HarmonyPatch("GetInitInfo", [ typeof(Type) ])]
     public static WorkerInitInfo GetInitInfo(this Type workerType) => throw new NotImplementedException("Harmony stub");
 }
