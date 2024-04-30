@@ -12,4 +12,4 @@ Simply start typing the name of the component you're looking for and the top ten
 
 CherryPick also supports generic typing as well! You can insert generic arguments for the first generic type in the list like so:
 
-<img src="Resonite_MpNIjXzyrg.gif" width=350>
+<img src="Resonite_v4HSr3GShH.gif" width=350>
