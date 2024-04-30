@@ -152,8 +152,19 @@ public class CherryPicker(string? scope = null)
             return;
 
 
-        int tickIndex = txt.IndexOf('`');
-        string matchTxt = tickIndex > 0 ? txt.Substring(0, tickIndex) : txt;
+        int genericStart = txt.IndexOf('<');
+        string? matchTxt = null;
+        string? genericType = null;
+
+        if (genericStart > 0)
+        {
+            matchTxt = txt.Substring(0, genericStart);
+            genericType = txt.Substring(genericStart);
+        }
+        else
+        {
+            matchTxt = txt;
+        }
 
 
         searchRoot.DestroyChildren();
@@ -172,17 +183,12 @@ public class CherryPicker(string? scope = null)
 
 
         WorkerDetails firstGeneric = _results.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
-        if (firstGeneric.Type != null && tickIndex > 0)
+        if (genericType != null)
         {
-            string newTxt = txt.Substring(MathX.Clamp(tickIndex + 2, 0, txt.Length));
-            string typeName = firstGeneric.Type.FullName + newTxt;
-            Type? constructed = null;
+            string typeName = firstGeneric.Type.Name;
+            typeName = typeName.Substring(0, typeName.IndexOf("`")) + genericType;
+            Type? constructed = WorkerManager.ParseNiceType(typeName);
 
-            try
-            {
-                constructed = WorkerManager.GetType(typeName);
-            }
-            catch (Exception) { }; // Lazy way to get around accidentally making types with too few parameters... Probably bad. I think. Possibly.
 
             if (constructed != null)
             {
