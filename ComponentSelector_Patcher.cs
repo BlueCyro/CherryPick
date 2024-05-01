@@ -74,6 +74,7 @@ public static class ComponentSelector_Patcher
         field.Text.HorizontalAutoSize.Value = true;
         field.Text.Size.Value = 39.55418f;
         field.Text.Color.Value = RadiantUI_Constants.Neutrals.LIGHT;
+        field.Text.ParseRichText.Value = false;
         field.Editor.Target.FinishHandling.Value = TextEditor.FinishAction.NullOnWhitespace;
         builder.Style.FlexibleHeight = 1f;
 
