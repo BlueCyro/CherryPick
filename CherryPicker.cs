@@ -3,142 +3,192 @@ using FrooxEngine;
 using Elements.Core;
 using FrooxEngine.UIX;
 using static CherryPick.CherryPick;
+using System.Runtime.CompilerServices;
 
 namespace CherryPick;
 
-public class CherryPicker(string? scope = null)
+public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHandler<string> onGenericPressed, ButtonEventHandler<string> onAddPressed, UIBuilder searchBuilder, Sync<string> scope)
 {
-    public string? Scope
+    public string Scope
     {
-        get => scope; 
-        set
-        {
-            scope = value;
-            WarmScope(value);
-        }
+        get => scope.Value;
+        set => scope.Value = value;
     }
-
     public static bool IsReady { get; private set; }
-    public List<WorkerDetails> Workers => scope != null ? _pathCache[scope] : _allWorkers;
-    private static readonly Dictionary<string, List<WorkerDetails>> _pathCache = [];
-    private static readonly List<WorkerDetails> _allWorkers = [];
-    private readonly List<WorkerDetails> _results = [];
-
+    public WorkerDetails[] Workers => _allWorkers;
+    private readonly SortedList<float, WorkerDetails> _results = new(new MatchRatioComparer()); // Not queryable by index due to the implementation of MatchRatioComparer
+    private static readonly WorkerDetails[] _allWorkers = [];
 
 
 
     static CherryPicker()
     {
-        foreach (var worker in WorkerInitializer.Workers)
+        static IEnumerable<CategoryNode<Type>> flatten(IEnumerable<CategoryNode<Type>> categories) =>
+            categories
+            .SelectMany(category => flatten(category.Subcategories))
+            .Concat(categories);
+
+
+        IEnumerable<CategoryNode<Type>> allCategories = flatten(WorkerInitializer.ComponentLibrary.Subcategories);
+        List<WorkerDetails> details = [];
+
+
+        foreach (var category in allCategories)
         {
-            if (!typeof(Component).IsAssignableFrom(worker))
-                continue;
-            
-            WorkerInitInfo info = worker.GetInitInfo();
-
-            string? path = info.CategoryPath;
-            var detail = new WorkerDetails(worker.GetNiceName(), path, worker);
-
-            _allWorkers.Add(detail);
+            foreach (var element in category.Elements)
+            {
+                WorkerDetails detail = new(element.GetNiceName(), category.GetPath(), element);
+                details.Add(detail);
+            }
         }
+
+        _allWorkers = [.. details];
     }
 
 
 
-    public static void SetReady()
-    {
-        IsReady = true;
-    }
+    public static void SetReady() => IsReady = true;
 
 
 
-    // Makes a new pre-filtered list that is scoped to whatever the string is. This is somewhat heavy, so it's done when the mod initializes.
-    public static void WarmScope(string? scope = null)
-    {
-        if (!string.IsNullOrEmpty(scope) && !_pathCache.ContainsKey(scope!))
-        {
-            var filteredDict = _allWorkers
-                                .Where(w => w.Path.StartsWith(scope))
-                                .ToList();
-
-            _pathCache.Add(scope!, filteredDict);
-        }
-    }
+    #region String matching
 
 
 
     public void PerformMatch(string query, int resultCount = 10)
     {
-        _results.Clear();
+        ResetResults(resultCount);
 
-        // Occam's razor on this fellas. Sometimes the simplest solution is the right one. This takes like 3-7ms for the first sweep, then 0ms on subsequent queries. Wacky.
-        var results = Workers
-            .Select(w => new { worker = w, ratio = MatchRatioInsensitive(w.LowerName, query) })
-            .Where(x => x.ratio > 0f)
-            .OrderByDescending(x => x.ratio)
-            .Take(resultCount)
-            .Select(x => x.worker);
+        int workerCount = Workers.Length;
+        WorkerDetails[] details = Workers;
+
+        string[] splitQuery = query.Split(' ');
+
         
-        foreach (var w in results)
+
+        // A bit hot and can cause minor hitches if care isn't taken. Avoiding branch logic if possible
+
+        if (string.IsNullOrEmpty(Scope))
         {
-            _results.Add(w);
+            for (int i = 0; i < workerCount; i++)
+            {
+                WorkerDetails worker = details[i];
+                float ratio = MatchRatioInsensitive(worker.LowerName, splitQuery);
+
+                _results.Add(ratio, worker);
+                int detailCount = _results.Count;
+
+                _results.RemoveAt(detailCount - 1);
+            }
         }
+        else
+        {
+            string searchScope = "/" + Scope;
+            for (int i = 0; i < workerCount; i++)
+            {
+                WorkerDetails worker = details[i];
+                float ratio = worker.Path.StartsWith(searchScope) ? MatchRatioInsensitive(worker.LowerName, splitQuery) : 0f;
+
+                _results.Add(ratio, worker);
+                int detailCount = _results.Count;
+
+                _results.RemoveAt(detailCount - 1);
+            }
+        }
+        
+        
+        // Remove the zero-scored results after the fact. Avoids another conditional in the hot path above
+        while (MathX.Approximately(_results.LastOrDefault().Key, 0f) && _results.Count > 0)
+            _results.RemoveAt(_results.Count - 1);
+
+    }
+
+
+
+    void ResetResults(int startCount = 10)
+    {
+        _results.Clear();
+        for (int i = 0; i < startCount; i++)
+            _results.Add(0f, default);
     }
 
 
 
     // Out of the total string length, how many characters actually match the query. Gives decent results.
-    static float MatchRatioInsensitive(string? result, string match) 
+    static float MatchRatioInsensitive(string? source, params string[] query)
     {
-        if (result == null)
+        if (source == null)
             return 0f;
         
-        var contains = match.Split(' ').Select(item => (item, score: result.IndexOf(item, StringComparison.OrdinalIgnoreCase)));
-        
-        var score = contains
-                    .Where(v => v.score >= 0)
-                    .Select((v, i) => (v.item, v.score, i))
-                    .Sum((v) => v.item.Length / (result.Length + v.i + 1f));
+        float totalScore = 0f;
+        int indexFound = 1;
 
-        return contains.All(v => v.score >= 0) ? score : 0f;
+
+        for (int i = 0; i < query.Length; i++)
+        {
+            string item = query[i];
+            int score = source.IndexOf(item, StringComparison.OrdinalIgnoreCase);
+
+
+            // Nasty bit hack - faster way of getting the sign without any conditional branching. I hate this runtime
+            indexFound *= IsPositive(score); // If this is ever zero, the score will remain zero
+
+
+            // Sum the score, but make it zero if any query was not found
+            totalScore = indexFound * (totalScore + item.Length / (source.Length + i + 1f));
+        }
+
+
+        return totalScore;
     }
 
 
+    #endregion
 
-    public void EditStart(Slot searchRoot, Slot defaultRoot, Sync<string> scope)
+
+
+    #region TextEditor Events
+
+
+
+    public void EditStart(TextEditor editor)
     {
-        Scope = scope;
-        if (defaultRoot != null && searchRoot != null)
+        if (componentUIRoot != null && searchRoot != null)
         {
-            defaultRoot.ActiveSelf = false;
+            componentUIRoot.ActiveSelf = false;
             searchRoot.ActiveSelf = true;
         }
     }
 
 
 
-    public void EditFinished(TextEditor editor, Slot searchRoot, Slot defaultRoot, bool forceFinish = false)
-    {
-        if (forceFinish)
-            editor.Text.Target.Text = null;
-         
+    public void EditFinished(TextEditor editor)
+    {         
         if (editor != null &&
             editor.Text.Target != null &&
             string.IsNullOrEmpty(editor.Text.Target.Text) &&
-            defaultRoot != null &&
+            componentUIRoot != null &&
             searchRoot != null)
         {
-            defaultRoot.ActiveSelf = true;
+            componentUIRoot.ActiveSelf = true;
             searchRoot.ActiveSelf = false;
         }
     }
 
 
 
-    public void EditChanged(TextEditor editor, Slot searchRoot, Slot defaultRoot, UIBuilder searchBuilder, ButtonEventHandler<string> onGenericPressed, ButtonEventHandler<string> onAddPressed)
+    public void ForceEditFinished(TextEditor editor)
+    {
+        editor.Text.Target.Text = null;
+        EditFinished(editor);
+    }
+
+
+
+    public void EditChanged(TextEditor editor)
     {
         if (searchRoot == null ||
-            defaultRoot == null || 
+            componentUIRoot == null || 
             editor == null ||
             onGenericPressed == null ||
             onAddPressed == null || 
@@ -173,19 +223,19 @@ public class CherryPicker(string? scope = null)
 
 
         PerformMatch(matchTxt, resultCount);
-        foreach (var result in _results)
+        foreach (var result in _results.Values)
         {
             string arg = result.Type.IsGenericTypeDefinition ? Path.Combine(result.Path, result.Type.FullName) : result.Type.FullName;
             var pressed = result.Type.IsGenericTypeDefinition ? onGenericPressed : onAddPressed;
 
-            CreateButton(result, pressed, arg, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.CYAN);
+            CreateButton(result, pressed, arg, searchBuilder, editor, RadiantUI_Constants.Sub.CYAN);
         }
 
 
-        WorkerDetails firstGeneric = _results.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
+        WorkerDetails firstGeneric = _results.Values.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
         if (genericType != null)
         {
-            string typeName = firstGeneric.Type.Name;
+            string typeName = firstGeneric.Type.FullName;
             typeName = typeName.Substring(0, typeName.IndexOf("`")) + genericType;
             Type? constructed = WorkerManager.ParseNiceType(typeName);
 
@@ -193,7 +243,7 @@ public class CherryPicker(string? scope = null)
             if (constructed != null)
             {
                 WorkerDetails detail = new(constructed.GetNiceName(), firstGeneric.Path, constructed);
-                Button typeButton = CreateButton(detail, onAddPressed, typeName, searchBuilder, editor, searchRoot, defaultRoot, RadiantUI_Constants.Sub.ORANGE);
+                Button typeButton = CreateButton(detail, onAddPressed, typeName, searchBuilder, editor, RadiantUI_Constants.Sub.ORANGE);
                 typeButton.Slot.OrderOffset = -1024;
             }
         }
@@ -201,34 +251,60 @@ public class CherryPicker(string? scope = null)
 
 
 
+    #endregion
+
+
+
     // One day we will have better UI construction... one day :')
-    private Button CreateButton(WorkerDetails detail, ButtonEventHandler<string> pressed, string arg, UIBuilder builder, TextEditor editor, Slot searchRoot, Slot defaultRoot, colorX col)
+    private Button CreateButton(in WorkerDetails detail, ButtonEventHandler<string> pressed, string arg, UIBuilder builder, TextEditor editor, colorX col)
     {
-        string path = Scope != null ? detail.Path.Replace(Scope, null) : detail.Path;
+        // Snip the scope off of the beginning of the path if the browser so that it's relative to the scope
+        string path = Scope != null ? detail.Path.Replace("/" + Scope, null) : detail.Path;
+        string buttonText = $"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}";
 
-
-        var button = builder.Button($"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}", col, pressed, arg, CherryPick.PressDelay);
+        
+        var button = builder.Button(buttonText, col, pressed, arg, CherryPick.PressDelay);
         ValueField<double> lastPressed = button.Slot.AddSlot("LastPressed").AttachComponent<ValueField<double>>();
         button.ClearFocusOnPress.Value = CherryPick.Config!.GetValue(CherryPick.ClearFocus);
 
 
         if (detail.Type.IsGenericTypeDefinition)
         {
-            button.LocalPressed += (b, d) =>
+            // Define delegate here for unsubscription later
+            void CherryPickButtonPress(IButton b, ButtonEventData d)
             {
                 double now = searchRoot.World.Time.WorldTime;
+
+
                 if (now - lastPressed.Value < CherryPick.PressDelay || CherryPick.SingleClick)
-                    EditFinished(editor, searchRoot, defaultRoot, true);
+                    ForceEditFinished(editor);
                 else
                     lastPressed.Value.Value = now;
-            };
+            }
+
+
+            // Destroy delegate for unsubscription
+            void ButtonDestroyed(IDestroyable d)
+            {
+                IButton destroyedButton = (IButton)d;
+                
+                // When the button is destroyed, unsubscribe the events like a good boy
+                destroyedButton.LocalPressed -= CherryPickButtonPress;
+                destroyedButton.Destroyed -= ButtonDestroyed;
+            }
+
+
+            button.LocalPressed += CherryPickButtonPress;
+            button.Destroyed += ButtonDestroyed;
         }
         
 
+        // Funny magic UI numbers
         var text = (Text)button.LabelTextField.Parent;
         text.Size.Value = 24.44582f; 
 
 
+        // Smooth the color transitions on the buttons for visual appeal
         var smooth = button.Slot.AttachComponent<SmoothValue<colorX>>();
         IField<colorX> target = button.ColorDrivers.First().ColorDrive.Target;
         smooth.TargetValue.Value = target.Value;
@@ -241,4 +317,29 @@ public class CherryPicker(string? scope = null)
 
         return button;
     }
+
+
+    
+    /// <summary>
+    /// Bitwise check to see if an integer is positive
+    /// </summary>
+    /// <param name="value">Integer to check</param>
+    /// <returns>1 if positive, otherwise 0</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int IsPositive(int value)
+    {
+        return 1 + ((value & int.MinValue) >> 31);
+    }
 }
+
+
+
+// When using this in a SortedList, you won't be able to look up an entry by key!!
+public struct MatchRatioComparer : IComparer<float>
+{
+    public readonly int Compare(float x, float y)
+    {
+        return x > y ? -1 : 1;
+    }
+}
+
