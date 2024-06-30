@@ -95,10 +95,12 @@ public static class ComponentSelector_Patcher
         ____uiRoot.Target = builder.Root;
 
         __instance.BuildUI(null, false, null, false); // Build the normal component selector UI
-
-        CherryPicker picker = new();
-
+        
+        
         UIBuilder searchBuilder = new(searchRoot);
+        CherryPicker picker = new(searchRoot, ____uiRoot, onGenericPressed, onAddPressed, searchBuilder, ____rootPath);
+
+
         RadiantUI_Constants.SetupEditorStyle(searchBuilder);
         searchBuilder.Style.TextAlignment = Alignment.MiddleLeft;
         searchBuilder.Style.ButtonTextAlignment = Alignment.MiddleLeft;
@@ -106,17 +108,29 @@ public static class ComponentSelector_Patcher
         searchBuilder.Style.TextLineHeight = 1f;
 
 
-        field.Editor.Target.LocalEditingStarted += c => picker.EditStart(searchRoot, ____uiRoot, ____rootPath);
+        field.Editor.Target.LocalEditingStarted += picker.EditStart;
+        field.Editor.Target.LocalEditingChanged += picker.EditChanged;
+        field.Editor.Target.LocalEditingFinished += picker.EditFinished;
 
-        field.Editor.Target.LocalEditingChanged += c => picker.EditChanged(c, searchRoot, ____uiRoot, searchBuilder, onGenericPressed, onAddPressed);
 
-        field.Editor.Target.LocalEditingFinished += c => picker.EditFinished(c, searchRoot, ____uiRoot);
-
-        nullButton.LocalPressed += (b, d) =>
+        void nullButtonPressed(IButton b, ButtonEventData d)
         {
             field.Text.Content.Value = null;
             field.Editor.Target.ForceEditingChangedEvent();
-        };
+        }
+
+
+        void nullButtonDestroyed(IDestroyable d)
+        {
+            IButton destroyedButton = (IButton)d;
+
+            destroyedButton.LocalPressed -= nullButtonPressed;
+            destroyedButton.Destroyed -= nullButtonDestroyed;
+        }
+
+
+        nullButton.LocalPressed += nullButtonPressed;
+        nullButton.Destroyed += nullButtonDestroyed;
 
 
         return false;
