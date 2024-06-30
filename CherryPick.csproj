@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
 
 
-    <Version>1.0.7</Version>
+    <Version>1.1.0</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <Authors>Cyro</Authors>
     <Product>CherryPick Component Searcher</Product>
@@ -46,6 +46,9 @@
     </Reference>
     <Reference Include="Elements.Assets">
       <HintPath>$(ResonitePath)Resonite_Data\Managed\Elements.Assets.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Memory">
+      <HintPath>$(ResonitePath)Resonite_Data\Managed\System.Memory.dll</HintPath>
     </Reference>
   </ItemGroup>
 
