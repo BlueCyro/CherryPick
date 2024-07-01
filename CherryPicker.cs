@@ -66,8 +66,10 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
         
 
-        // A bit hot and can cause minor hitches if care isn't taken. Avoiding branch logic if possible
+        // The for loops are a bit hot and can cause minor
+        // hitches if care isn't taken. Avoiding branch logic if possible
 
+        // Check if there's actually a scope, because if there isn't, a slightly more efficient loop can be used
         if (string.IsNullOrEmpty(Scope))
         {
             for (int i = 0; i < workerCount; i++)
