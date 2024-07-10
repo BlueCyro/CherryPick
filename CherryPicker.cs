@@ -227,7 +227,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         PerformMatch(matchTxt, resultCount);
         foreach (var result in _results.Values)
         {
-            string arg = result.Type.IsGenericTypeDefinition ? Path.Combine(result.Path, result.Type.FullName) : result.Type.FullName;
+            string arg = result.Type.IsGenericTypeDefinition ? Path.Combine(result.Path, result.Type.FullName) : searchRoot.World.Types().EncodeType(result.Type);
             var pressed = result.Type.IsGenericTypeDefinition ? onGenericPressed : onAddPressed;
 
             CreateButton(result, pressed, arg, searchBuilder, editor, RadiantUI_Constants.Sub.CYAN);
@@ -239,13 +239,13 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         {
             string typeName = firstGeneric.Type.FullName;
             typeName = typeName.Substring(0, typeName.IndexOf("`")) + genericType;
-            Type? constructed = WorkerManager.ParseNiceType(typeName);
+            Type? constructed = NiceTypeParser.TryParse(typeName);
 
 
             if (constructed != null)
             {
                 WorkerDetails detail = new(constructed.GetNiceName(), firstGeneric.Path, constructed);
-                Button typeButton = CreateButton(detail, onAddPressed, typeName, searchBuilder, editor, RadiantUI_Constants.Sub.ORANGE);
+                Button typeButton = CreateButton(detail, onAddPressed, searchRoot.World.Types().EncodeType(constructed), searchBuilder, editor, RadiantUI_Constants.Sub.ORANGE);
                 typeButton.Slot.OrderOffset = -1024;
             }
         }

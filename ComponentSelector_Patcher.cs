@@ -155,3 +155,11 @@ public static class ComponentSelector_Patcher
         }
     }
 }
+
+
+[HarmonyPatch(typeof(World), "Types", MethodType.Getter)]
+public static class World_Patcher
+{
+    [HarmonyReversePatch]
+    public static TypeManager Types(this World w) => throw new NotImplementedException("Harmony stub");
+}
