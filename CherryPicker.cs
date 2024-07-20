@@ -37,8 +37,11 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         {
             foreach (var element in category.Elements)
             {
-                WorkerDetails detail = new(element.GetNiceName(), category.GetPath(), element);
-                details.Add(detail);
+                if (element.IsDataModelType())
+                {
+                    WorkerDetails detail = new(element.GetNiceName(), category.GetPath(), element);
+                    details.Add(detail);
+                }
             }
         }
 
@@ -227,28 +230,53 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         PerformMatch(matchTxt, resultCount);
         foreach (var result in _results.Values)
         {
-            string arg = result.Type.IsGenericTypeDefinition ? Path.Combine(result.Path, result.Type.FullName) : searchRoot.World.Types().EncodeType(result.Type);
-            var pressed = result.Type.IsGenericTypeDefinition ? onGenericPressed : onAddPressed;
+            bool isGenType = result.Type.IsGenericTypeDefinition;
+            string arg = "";
+            
+            try
+            {
+                arg = isGenType ? Path.Combine(result.Path, result.Type.AssemblyQualifiedName) : searchRoot.World.Types().EncodeType(result.Type);
+            }
+            catch (ArgumentException)
+            {
+                CherryPick.Warn($"Tried to encode a non-data model type: {result.Type}");
+                continue;
+            }
 
+            var pressed = isGenType ? onGenericPressed : onAddPressed;
             CreateButton(result, pressed, arg, searchBuilder, editor, RadiantUI_Constants.Sub.CYAN);
         }
 
 
-        WorkerDetails firstGeneric = _results.Values.FirstOrDefault(w => w.Type.IsGenericTypeDefinition);
-        if (genericType != null)
+        try
         {
-            string typeName = firstGeneric.Type.FullName;
-            typeName = typeName.Substring(0, typeName.IndexOf("`")) + genericType;
-            Type? constructed = NiceTypeParser.TryParse(typeName);
-
-
-            if (constructed != null)
+            WorkerDetails firstGeneric = _results.Values.First(w => w.Type.IsGenericTypeDefinition);
+            if (genericType != null)
             {
-                WorkerDetails detail = new(constructed.GetNiceName(), firstGeneric.Path, constructed);
-                Button typeButton = CreateButton(detail, onAddPressed, searchRoot.World.Types().EncodeType(constructed), searchBuilder, editor, RadiantUI_Constants.Sub.ORANGE);
-                typeButton.Slot.OrderOffset = -1024;
+                string typeName = firstGeneric.Type.FullName;
+                typeName = typeName.Substring(0, typeName.IndexOf("`")) + genericType;
+                Type? constructed = NiceTypeParser.TryParse(typeName);
+
+
+                if (constructed != null)
+                {
+                    try
+                    {
+                        string arg = searchRoot.World.Types().EncodeType(constructed);
+                    }
+                    catch (ArgumentException)
+                    {
+                        CherryPick.Warn($"Tried to encode a non-data model type: {constructed}");
+                        return;
+                    }
+
+                    WorkerDetails detail = new(constructed.GetNiceName(), firstGeneric.Path, constructed);
+                    Button typeButton = CreateButton(detail, onAddPressed, searchRoot.World.Types().EncodeType(constructed), searchBuilder, editor, RadiantUI_Constants.Sub.ORANGE);
+                    typeButton.Slot.OrderOffset = -1024;
+                }
             }
         }
+        catch (InvalidOperationException) { } // Swallow this exception in particular because First() will throw if nothing satisfies the lambda condition
     }
 
 
