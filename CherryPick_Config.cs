@@ -22,4 +22,8 @@ public partial class CherryPick : ResoniteMod
 
     [AutoRegisterConfigKey]
     public static ModConfigurationKey<bool> ClearFocus = new("Clear focus", "When checked, the search buttons will clear the focus of the search bar.", () => true);
+
+    [AutoRegisterConfigKey]
+    public static ModConfigurationKey<string> UserExcludedCategories = new("Excluded categories", "Excludes specific categories from being searched into by path. Separate entries by semicolon. Search will work when started inside them", () => "/ProtoFlux, /Example/Test");
+
 }
