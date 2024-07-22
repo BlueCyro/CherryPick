@@ -67,7 +67,9 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
         string[] splitQuery = query.Split(' ');
 
-        
+        string userexcludedcategories = Config!.GetValue(CherryPick.UserExcludedCategories).ToLower();
+        string[] UserExcludedCategories = userexcludedcategories.Replace(" ", null).Split(',');
+
 
         // The for loops are a bit hot and can cause minor
         // hitches if care isn't taken. Avoiding branch logic if possible
@@ -78,12 +80,15 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             for (int i = 0; i < workerCount; i++)
             {
                 WorkerDetails worker = details[i];
-                float ratio = MatchRatioInsensitive(worker.LowerName, splitQuery);
+                if (!UserExcludedCategories.Any(worker.Path.ToLower().Contains))
+                {
+                    float ratio = MatchRatioInsensitive(worker.LowerName, splitQuery);
 
-                _results.Add(ratio, worker);
-                int detailCount = _results.Count;
+                    _results.Add(ratio, worker);
+                    int detailCount = _results.Count;
 
-                _results.RemoveAt(detailCount - 1);
+                    _results.RemoveAt(detailCount - 1);
+                }
             }
         }
         else
@@ -92,12 +97,15 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             for (int i = 0; i < workerCount; i++)
             {
                 WorkerDetails worker = details[i];
-                float ratio = worker.Path.StartsWith(searchScope) ? MatchRatioInsensitive(worker.LowerName, splitQuery) : 0f;
+                if (!UserExcludedCategories.Any(worker.Path.ToLower().Contains))
+                {
+                    float ratio = worker.Path.StartsWith(searchScope) ? MatchRatioInsensitive(worker.LowerName, splitQuery) : 0f;
 
-                _results.Add(ratio, worker);
-                int detailCount = _results.Count;
+                    _results.Add(ratio, worker);
+                    int detailCount = _results.Count;
 
-                _results.RemoveAt(detailCount - 1);
+                    _results.RemoveAt(detailCount - 1);
+                }
             }
         }
         
@@ -188,95 +196,115 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         EditFinished(editor);
     }
 
-
+    
+    int searchDelayToken = 0;
 
     public void EditChanged(TextEditor editor)
     {
-        if (searchRoot == null ||
-            componentUIRoot == null || 
-            editor == null ||
-            onGenericPressed == null ||
-            onAddPressed == null || 
-            searchBuilder == null ||
-            !IsReady) // You can't search until the cache is built! This is fine in most cases, but if you end up searching before then, too bad!
+        int SearchRefreshDelay = (int)(1000 * Config!.GetValue(CherryPick.SearchRefreshDelay));
+
+        editor.StartTask(async () =>
+        {
+            searchDelayToken++;
+            int LocalSearchDelayToken = searchDelayToken;
+
+            if (SearchRefreshDelay > 0)
+            {
+                await default(ToBackground);
+                await Task.Delay(SearchRefreshDelay);
+                await default(NextUpdate);
+            }
+
+            // Only refresh UI with search results if there was no further update immediately following it
+            if (searchDelayToken!= LocalSearchDelayToken)
                 return;
 
+            if (searchRoot == null ||
+                componentUIRoot == null || 
+                editor == null ||
+                onGenericPressed == null ||
+                onAddPressed == null || 
+                searchBuilder == null ||
+                !IsReady) // You can't search until the cache is built! This is fine in most cases, but if you end up searching before then, too bad!
+                    return;
+
         
-        string txt = editor.Text.Target.Text;
-        if (txt == null)
-            return;
+            string txt = editor.Text.Target.Text;
+            if (txt == null)
+                return;
 
 
-        int genericStart = txt.IndexOf('<');
-        string? matchTxt = null;
-        string? genericType = null;
+            int genericStart = txt.IndexOf('<');
+            string? matchTxt = null;
+            string? genericType = null;
 
-        if (genericStart > 0)
-        {
-            matchTxt = txt.Substring(0, genericStart);
-            genericType = txt.Substring(genericStart);
-        }
-        else
-        {
-            matchTxt = txt;
-        }
-
-
-        searchRoot.DestroyChildren();
-        int resultCount = Config!.GetValue(ResultCount);
-        resultCount = MathX.Min(resultCount, MAX_RESULT_COUNT);
+            if (genericStart > 0)
+            {
+                matchTxt = txt.Substring(0, genericStart);
+                genericType = txt.Substring(genericStart);
+            }
+            else
+            {
+                matchTxt = txt;
+            }
 
 
-        PerformMatch(matchTxt, resultCount);
-        foreach (var result in _results.Values)
-        {
-            bool isGenType = result.Type.IsGenericTypeDefinition;
-            string arg = "";
+            searchRoot.DestroyChildren();
+            int resultCount = Config!.GetValue(ResultCount);
+            resultCount = MathX.Min(resultCount, MAX_RESULT_COUNT);
+
+
+            PerformMatch(matchTxt, resultCount);
+            foreach (var result in _results.Values)
+            {
+                bool isGenType = result.Type.IsGenericTypeDefinition;
+                string arg = "";
             
+                try
+                {
+                    arg = isGenType ? Path.Combine(result.Path, result.Type.AssemblyQualifiedName) : searchRoot.World.Types().EncodeType(result.Type);
+                }
+                catch (ArgumentException)
+                {
+                    CherryPick.Warn($"Tried to encode a non-data model type: {result.Type}");
+                    continue;
+                }
+
+                var pressed = isGenType ? onGenericPressed : onAddPressed;
+                CreateButton(result, pressed, arg, searchBuilder, editor, RadiantUI_Constants.Sub.CYAN);
+            }
+
+
             try
             {
-                arg = isGenType ? Path.Combine(result.Path, result.Type.AssemblyQualifiedName) : searchRoot.World.Types().EncodeType(result.Type);
-            }
-            catch (ArgumentException)
-            {
-                CherryPick.Warn($"Tried to encode a non-data model type: {result.Type}");
-                continue;
-            }
-
-            var pressed = isGenType ? onGenericPressed : onAddPressed;
-            CreateButton(result, pressed, arg, searchBuilder, editor, RadiantUI_Constants.Sub.CYAN);
-        }
-
-
-        try
-        {
-            WorkerDetails firstGeneric = _results.Values.First(w => w.Type.IsGenericTypeDefinition);
-            if (genericType != null)
-            {
-                string typeName = firstGeneric.Type.FullName;
-                typeName = typeName.Substring(0, typeName.IndexOf("`")) + genericType;
-                Type? constructed = NiceTypeParser.TryParse(typeName);
-
-
-                if (constructed != null)
+                WorkerDetails firstGeneric = _results.Values.First(w => w.Type.IsGenericTypeDefinition);
+                if (genericType != null)
                 {
-                    try
-                    {
-                        string arg = searchRoot.World.Types().EncodeType(constructed);
-                    }
-                    catch (ArgumentException)
-                    {
-                        CherryPick.Warn($"Tried to encode a non-data model type: {constructed}");
-                        return;
-                    }
+                    string typeName = firstGeneric.Type.FullName;
+                    typeName = typeName.Substring(0, typeName.IndexOf("`")) + genericType;
+                    Type? constructed = NiceTypeParser.TryParse(typeName);
 
-                    WorkerDetails detail = new(constructed.GetNiceName(), firstGeneric.Path, constructed);
-                    Button typeButton = CreateButton(detail, onAddPressed, searchRoot.World.Types().EncodeType(constructed), searchBuilder, editor, RadiantUI_Constants.Sub.ORANGE);
-                    typeButton.Slot.OrderOffset = -1024;
+
+                    if (constructed != null)
+                    {
+                        try
+                        {
+                            string arg = searchRoot.World.Types().EncodeType(constructed);
+                        }
+                        catch (ArgumentException)
+                        {
+                            CherryPick.Warn($"Tried to encode a non-data model type: {constructed}");
+                            return;
+                        }
+
+                        WorkerDetails detail = new(constructed.GetNiceName(), firstGeneric.Path, constructed);
+                        Button typeButton = CreateButton(detail, onAddPressed, searchRoot.World.Types().EncodeType(constructed), searchBuilder, editor, RadiantUI_Constants.Sub.ORANGE);
+                        typeButton.Slot.OrderOffset = -1024;
+                    }
                 }
             }
-        }
-        catch (InvalidOperationException) { } // Swallow this exception in particular because First() will throw if nothing satisfies the lambda condition
+            catch (InvalidOperationException) { } // Swallow this exception in particular because First() will throw if nothing satisfies the lambda condition
+        });
     }
 
 
