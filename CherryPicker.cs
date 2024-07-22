@@ -67,9 +67,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
         string[] splitQuery = query.Split(' ');
 
-        string userexcludedcategories = Config!.GetValue(CherryPick.UserExcludedCategories).ToLower();
-        string[] UserExcludedCategories = userexcludedcategories.Replace(" ", null).Split(',');
-
+        
 
         // The for loops are a bit hot and can cause minor
         // hitches if care isn't taken. Avoiding branch logic if possible
@@ -80,15 +78,12 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             for (int i = 0; i < workerCount; i++)
             {
                 WorkerDetails worker = details[i];
-                if (!UserExcludedCategories.Any(worker.Path.ToLower().Contains))
-                {
-                    float ratio = MatchRatioInsensitive(worker.LowerName, splitQuery);
+                float ratio = MatchRatioInsensitive(worker.LowerName, splitQuery);
 
-                    _results.Add(ratio, worker);
-                    int detailCount = _results.Count;
+                _results.Add(ratio, worker);
+                int detailCount = _results.Count;
 
-                    _results.RemoveAt(detailCount - 1);
-                }
+                _results.RemoveAt(detailCount - 1);
             }
         }
         else
@@ -97,15 +92,12 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             for (int i = 0; i < workerCount; i++)
             {
                 WorkerDetails worker = details[i];
-                if (!UserExcludedCategories.Any(worker.Path.ToLower().Contains))
-                {
-                    float ratio = worker.Path.StartsWith(searchScope) ? MatchRatioInsensitive(worker.LowerName, splitQuery) : 0f;
+                float ratio = worker.Path.StartsWith(searchScope) ? MatchRatioInsensitive(worker.LowerName, splitQuery) : 0f;
 
-                    _results.Add(ratio, worker);
-                    int detailCount = _results.Count;
+                _results.Add(ratio, worker);
+                int detailCount = _results.Count;
 
-                    _results.RemoveAt(detailCount - 1);
-                }
+                _results.RemoveAt(detailCount - 1);
             }
         }
         
