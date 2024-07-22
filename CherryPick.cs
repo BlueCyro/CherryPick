@@ -10,7 +10,7 @@ public partial class CherryPick : ResoniteMod
     public override string Name => "<color=hero.green>🍃</color><color=hero.red>🍒</color> CherryPick"; // May remove this flair if it gets obnoxious
     public override string Author => "Cyro";
     public override string Version => typeof(CherryPick).Assembly.GetName().Version.ToString();
-    public override string Link => "https://github.com/RileyGuy/CherryPick";
+    public override string Link => "https://github.com/BlueCyro/CherryPick";
     public static ModConfiguration? Config;
 
     public override void OnEngineInit()
