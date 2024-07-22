@@ -98,13 +98,16 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             for (int i = 0; i < workerCount; i++)
             {
                 WorkerDetails worker = details[i];
-               
-                float ratio = worker.Path.StartsWith(searchScope) ? MatchRatioInsensitive(worker.LowerName, splitQuery) : 0f;
 
-                _results.Add(ratio, worker);
-                int detailCount = _results.Count;
+                if (!UserExcludedCategories.Any(worker.Path.ToLower().Replace("/protoflux", "").Contains) || userexcludedcategories == "")
+                {
+                    float ratio = worker.Path.StartsWith(searchScope) ? MatchRatioInsensitive(worker.LowerName, splitQuery) : 0f;
 
-                _results.RemoveAt(detailCount - 1);
+                    _results.Add(ratio, worker);
+                    int detailCount = _results.Count;
+
+                    _results.RemoveAt(detailCount - 1);
+                }
             }
         }
         
