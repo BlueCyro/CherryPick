@@ -1,4 +1,3 @@
-using System.Reflection;
 using FrooxEngine;
 using Elements.Core;
 using FrooxEngine.UIX;
@@ -67,7 +66,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
         string[] splitQuery = query.Split(' ');
 
-        
+
 
         // The for loops are a bit hot and can cause minor
         // hitches if care isn't taken. Avoiding branch logic if possible
@@ -100,8 +99,8 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
                 _results.RemoveAt(detailCount - 1);
             }
         }
-        
-        
+
+
         // Remove the zero-scored results after the fact. Avoids another conditional in the hot path above
         while (MathX.Approximately(_results.LastOrDefault().Key, 0f) && _results.Count > 0)
             _results.RemoveAt(_results.Count - 1);
@@ -124,7 +123,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
     {
         if (source == null)
             return 0f;
-        
+
         float totalScore = 0f;
         int indexFound = 1;
 
@@ -184,7 +183,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
     public void ForceEditFinished(TextEditor editor)
     {
-        editor.Text.Target.Text = null;
+        editor.Text.Target.Text = null!;
         EditFinished(editor);
     }
 
@@ -201,7 +200,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             !IsReady) // You can't search until the cache is built! This is fine in most cases, but if you end up searching before then, too bad!
                 return;
 
-        
+
         string txt = editor.Text.Target.Text;
         if (txt == null)
             return;
@@ -232,7 +231,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         {
             bool isGenType = result.Type.IsGenericTypeDefinition;
             string arg = "";
-            
+
             try
             {
                 arg = isGenType ? Path.Combine(result.Path, result.Type.AssemblyQualifiedName) : searchRoot.World.Types().EncodeType(result.Type);
@@ -292,7 +291,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         string path = Scope != null ? detail.Path.Replace("/" + Scope, null) : detail.Path;
         string buttonText = $"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}";
 
-        
+
         var button = builder.Button(buttonText, col, pressed, arg, CherryPick.PressDelay);
         ValueField<double> lastPressed = button.Slot.AddSlot("LastPressed").AttachComponent<ValueField<double>>();
         button.ClearFocusOnPress.Value = CherryPick.Config!.GetValue(CherryPick.ClearFocus);
@@ -317,7 +316,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             void ButtonDestroyed(IDestroyable d)
             {
                 IButton destroyedButton = (IButton)d;
-                
+
                 // When the button is destroyed, unsubscribe the events like a good boy
                 destroyedButton.LocalPressed -= CherryPickButtonPress;
                 destroyedButton.Destroyed -= ButtonDestroyed;
@@ -327,7 +326,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             button.LocalPressed += CherryPickButtonPress;
             button.Destroyed += ButtonDestroyed;
         }
-        
+
 
         // Funny magic UI numbers
         var text = (Text)button.LabelTextField.Parent;
@@ -349,7 +348,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
     }
 
 
-    
+
     /// <summary>
     /// Bitwise check to see if an integer is positive
     /// </summary>
