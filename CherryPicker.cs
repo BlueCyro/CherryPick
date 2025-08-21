@@ -9,6 +9,7 @@ namespace CherryPick;
 
 public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHandler<string> onGenericPressed, ButtonEventHandler<string> onAddPressed, UIBuilder searchBuilder, Sync<string> scope)
 {
+    private static readonly string PROTOFLUX_PREFIX = "/ProtoFlux/Runtimes/";
     public string Scope
     {
         get => scope.Value;
@@ -58,7 +59,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
 
 
-    public void PerformMatch(string query, int resultCount = 10)
+    public void PerformMatch(string query, int resultCount = 10, bool showProtofluxComponents = true)
     {
         ResetResults(resultCount);
 
@@ -72,8 +73,8 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         // The for loops are a bit hot and can cause minor
         // hitches if care isn't taken. Avoiding branch logic if possible
 
-        // Check if there's actually a scope, because if there isn't, a slightly more efficient loop can be used
-        if (string.IsNullOrEmpty(Scope))
+        // Check if there's actually anything to filter, because if there isn't, a slightly more efficient loop can be used
+        if (string.IsNullOrEmpty(Scope) && showProtofluxComponents)
         {
             for (int i = 0; i < workerCount; i++)
             {
@@ -92,7 +93,9 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             for (int i = 0; i < workerCount; i++)
             {
                 WorkerDetails worker = details[i];
-                float ratio = worker.Path.StartsWith(searchScope) ? MatchRatioInsensitive(worker.LowerName, splitQuery) : 0f;
+                float ratio = worker.Path.StartsWith(searchScope) && (showProtofluxComponents || !worker.Path.StartsWith(PROTOFLUX_PREFIX))
+                    ? MatchRatioInsensitive(worker.LowerName, splitQuery)
+                    : 0f;
 
                 _results.Add(ratio, worker);
                 int detailCount = _results.Count;
@@ -225,9 +228,13 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         searchRoot.DestroyChildren();
         int resultCount = Config!.GetValue(ResultCount);
         resultCount = MathX.Min(resultCount, MAX_RESULT_COUNT);
+        // Three different possibilities:
+        // 1. ProtoFlux Search (Scope is non-empty): Show ProtoFlux (obviously)
+        // 2. Component Search (Scope is empty), ProtoFlux is hidden: Don't show ProtoFlux
+        // 3. Component Search (Scope is empty), ProtoFlux should be shown (debug mode?): Show ProtoFlux
+        bool showProtofluxComponents = !string.IsNullOrEmpty(Scope) || Config!.GetValue(ShowProtofluxInComponentSearch);
 
-
-        PerformMatch(matchTxt, resultCount);
+        PerformMatch(matchTxt, resultCount, showProtofluxComponents);
         foreach (var result in _results.Values)
         {
             bool isGenType = result.Type.IsGenericTypeDefinition;

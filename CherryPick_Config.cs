@@ -22,4 +22,7 @@ public partial class CherryPick : ResoniteMod
 
     [AutoRegisterConfigKey]
     public static ModConfigurationKey<bool> ClearFocus = new("Clear focus", "When checked, the search buttons will clear the focus of the search bar.", () => true);
+
+    [AutoRegisterConfigKey]
+    public static ModConfigurationKey<bool> ShowProtofluxInComponentSearch = new("Show Protoflux in Component Search", "When checked, Protoflux components will be shown in the component search results", () => false);
 }
