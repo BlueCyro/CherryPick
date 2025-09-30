@@ -78,7 +78,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             for (int i = 0; i < workerCount; i++)
             {
                 WorkerDetails worker = details[i];
-                float ratio = MatchRatioInsensitive(worker.LowerName, splitQuery);
+                float ratio = CherryPick_Helper.MatchRatioInsensitive(worker.LowerName, splitQuery);
 
                 _results.Add(ratio, worker);
                 int detailCount = _results.Count;
@@ -93,7 +93,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             {
                 WorkerDetails worker = details[i];
                 float ratio = worker.Path.StartsWith(searchScope) && (showProtofluxComponents || !worker.Path.StartsWith(PROTOFLUX_PREFIX))
-                    ? MatchRatioInsensitive(worker.LowerName, splitQuery)
+                    ? CherryPick_Helper.MatchRatioInsensitive(worker.LowerName, splitQuery)
                     : 0f;
 
                 _results.Add(ratio, worker);
@@ -118,37 +118,6 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         for (int i = 0; i < startCount; i++)
             _results.Add(0f, default);
     }
-
-
-
-    // Out of the total string length, how many characters actually match the query. Gives decent results.
-    static float MatchRatioInsensitive(string? source, params string[] query)
-    {
-        if (source == null)
-            return 0f;
-
-        float totalScore = 0f;
-        int indexFound = 1;
-
-
-        for (int i = 0; i < query.Length; i++)
-        {
-            string item = query[i];
-            int score = source.IndexOf(item, StringComparison.OrdinalIgnoreCase);
-
-
-            // Nasty bit hack - faster way of getting the sign without any conditional branching. I hate this runtime
-            indexFound *= IsPositive(score); // If this is ever zero, the score will remain zero
-
-
-            // Sum the score, but make it zero if any query was not found
-            totalScore = indexFound * (totalScore + item.Length / (source.Length + i + 1f));
-        }
-
-
-        return totalScore;
-    }
-
 
     #endregion
 
@@ -227,6 +196,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         searchRoot.DestroyChildren();
         int resultCount = Config!.GetValue(ResultCount);
         resultCount = MathX.Min(resultCount, MAX_RESULT_COUNT);
+
         // Three different possibilities:
         // 1. ProtoFlux Search (Scope is non-empty): Show ProtoFlux (obviously)
         // 2. Component Search (Scope is empty), ProtoFlux is hidden: Don't show ProtoFlux
@@ -352,19 +322,6 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
 
         return button;
-    }
-
-
-
-    /// <summary>
-    /// Bitwise check to see if an integer is positive
-    /// </summary>
-    /// <param name="value">Integer to check</param>
-    /// <returns>1 if positive, otherwise 0</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int IsPositive(int value)
-    {
-        return 1 + ((value & int.MinValue) >> 31);
     }
 }
 
