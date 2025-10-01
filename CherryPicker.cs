@@ -2,7 +2,6 @@ using FrooxEngine;
 using Elements.Core;
 using FrooxEngine.UIX;
 using static CherryPick.CherryPick;
-using System.Runtime.CompilerServices;
 
 namespace CherryPick;
 
