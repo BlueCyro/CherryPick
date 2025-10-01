@@ -15,7 +15,7 @@ public static class ComponentSelector_Patcher
     {
         if (!CherryPick.Config!.GetValue(CherryPick.Enabled))
             return true;
-        
+
 
         var onAddPressed =
             __instance.GetType()
@@ -31,12 +31,12 @@ public static class ComponentSelector_Patcher
 
         if (onAddPressed == null || onGenericPressed == null)
             return true;
-        
+
 
         // Yeah.
         if (CherryPick.Config!.GetValue(CherryPick.SelectorFlair))
             __instance.Slot.Name = $"<color=hero.green>🍃</color><color=hero.red>🍒</color> {__instance.LocalUser.UserName}'s CherryPicked {__instance.Slot.Name}";
-        
+
 
         var builder = RadiantUI_Panel.SetupPanel(__instance.Slot, title, size, true, true);
         RadiantUI_Constants.SetupEditorStyle(builder, true);
@@ -55,6 +55,12 @@ public static class ComponentSelector_Patcher
         builder.Style.FlexibleWidth = 0f;
 
         Button nullButton = builder.Button("∅");
+        ButtonValueSet<string> nullSet = nullButton.Slot.AttachComponent<ButtonValueSet<string>>();
+
+        TextEditor editor = field.Editor.Target;
+        Sync<string> fieldText = (editor.Text.Target as Text)!.Content;
+        nullSet.TargetValue.Target = fieldText;
+
         SmoothButton(nullButton);
 
         builder.NestOut();
@@ -64,7 +70,7 @@ public static class ComponentSelector_Patcher
         smooth.Value.Target = field.Text.CaretColor;
         smooth.WriteBack.Value = true;
         smooth.Speed.Value = 12f;
-        
+
 
         Button button = field.Slot.GetComponent<Button>();
         SmoothButton(button);
@@ -85,7 +91,7 @@ public static class ComponentSelector_Patcher
         Slot searchRoot = builder.Root;
         builder.VerticalLayout(7.28605f, 0f);
         builder.FitContent(SizeFit.Disabled, SizeFit.MinSize);
-        
+
         searchRoot.ActiveSelf = false;
 
         // Back up a bit and make the area for the normal component browser UI to generate
@@ -96,8 +102,8 @@ public static class ComponentSelector_Patcher
         ____uiRoot.Target = builder.Root;
 
         __instance.BuildUI(null, false, null, false); // Build the normal component selector UI
-        
-        
+
+
         UIBuilder searchBuilder = new(searchRoot);
         CherryPicker picker = new(searchRoot, ____uiRoot, onGenericPressed, onAddPressed, searchBuilder, ____rootPath);
 
@@ -109,29 +115,32 @@ public static class ComponentSelector_Patcher
         searchBuilder.Style.TextLineHeight = 1f;
 
 
-        field.Editor.Target.LocalEditingStarted += picker.EditStart;
-        field.Editor.Target.LocalEditingChanged += picker.EditChanged;
-        field.Editor.Target.LocalEditingFinished += picker.EditFinished;
+        // field.Editor.Target.LocalEditingStarted += picker.EditStart;
+        // field.Editor.Target.LocalEditingChanged += picker.EditChanged;
+        // field.Editor.Target.LocalEditingFinished += picker.EditFinished;
 
 
-        void nullButtonPressed(IButton b, ButtonEventData d)
-        {
-            field.Text.Content.Value = null;
-            field.Editor.Target.ForceEditingChangedEvent();
-        }
+        fieldText.Changed += c => picker.EditChanged(editor);
 
 
-        void nullButtonDestroyed(IDestroyable d)
-        {
-            IButton destroyedButton = (IButton)d;
-
-            destroyedButton.LocalPressed -= nullButtonPressed;
-            destroyedButton.Destroyed -= nullButtonDestroyed;
-        }
+        // void nullButtonPressed(IButton b, ButtonEventData d)
+        // {
+        //     field.Text.Content.Value = null;
+        //     field.Editor.Target.ForceEditingChangedEvent();
+        // }
 
 
-        nullButton.LocalPressed += nullButtonPressed;
-        nullButton.Destroyed += nullButtonDestroyed;
+        // void nullButtonDestroyed(IDestroyable d)
+        // {
+        //     IButton destroyedButton = (IButton)d;
+
+        //     destroyedButton.LocalPressed -= nullButtonPressed;
+        //     destroyedButton.Destroyed -= nullButtonDestroyed;
+        // }
+
+
+        // nullButton.LocalPressed += nullButtonPressed;
+        // nullButton.Destroyed += nullButtonDestroyed;
 
 
         return false;
