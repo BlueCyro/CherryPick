@@ -1,8 +1,11 @@
-using HarmonyLib;
 using System.Reflection;
-using FrooxEngine;
+
 using Elements.Core;
+
+using FrooxEngine;
 using FrooxEngine.UIX;
+
+using HarmonyLib;
 
 namespace CherryPick;
 
@@ -37,6 +40,9 @@ public static class ComponentSelector_Patcher
         if (CherryPick.Config!.GetValue(CherryPick.SelectorFlair))
             __instance.Slot.Name = $"<color=hero.green>🍃</color><color=hero.red>🍒</color> {__instance.LocalUser.UserName}'s CherryPicked {__instance.Slot.Name}";
 
+
+        if (CherryPick.NonPersistentSearchWindows.Value)
+            __instance.Slot.PersistentSelf = false;
 
         var builder = RadiantUI_Panel.SetupPanel(__instance.Slot, title, size, true, true);
         RadiantUI_Constants.SetupEditorStyle(builder, true);
@@ -107,7 +113,6 @@ public static class ComponentSelector_Patcher
         UIBuilder searchBuilder = new(searchRoot);
         CherryPicker picker = new(searchRoot, ____uiRoot, onGenericPressed, onAddPressed, searchBuilder, ____rootPath);
 
-
         RadiantUI_Constants.SetupEditorStyle(searchBuilder);
         searchBuilder.Style.TextAlignment = Alignment.MiddleLeft;
         searchBuilder.Style.ButtonTextAlignment = Alignment.MiddleLeft;
@@ -160,7 +165,7 @@ public static class ComponentSelector_Patcher
             smooth.TargetValue.Value = driver.Target.Value;
             driver.Target = smooth.TargetValue;
             smooth.Value.Target = targetField;
-            smooth.Speed.Value = speed;             
+            smooth.Speed.Value = speed;
         }
     }
 }

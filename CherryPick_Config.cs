@@ -25,4 +25,7 @@ public partial class CherryPick : ResoniteMod
 
     [AutoRegisterConfigKey]
     public static ModConfigurationKey<bool> ShowProtofluxInComponentSearch = new("Show Protoflux in Component Search", "When checked, Protoflux components will be shown in the component search results", () => false);
+
+    [AutoRegisterConfigKey]
+    public static ModConfigurationKey<bool> NonPersistentSearchWindows = new("Make Search Windows Non-Persistent", "When checked, search window slots will be spawned with Persistent set to false", () => false);
 }
