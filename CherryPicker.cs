@@ -7,7 +7,6 @@ namespace CherryPick;
 
 public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHandler<string> onGenericPressed, ButtonEventHandler<string> onAddPressed, UIBuilder searchBuilder, Sync<string> scope)
 {
-    private static readonly string PROTOFLUX_PREFIX = "/ProtoFlux/Runtimes/";
     public string Scope
     {
         get => scope.Value;
@@ -19,6 +18,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
     private static readonly WorkerDetails[] _allWorkers = [];
 
 
+    private const string PROTOFLUX_PREFIX = "/ProtoFlux/Runtimes/";
 
     static CherryPicker()
     {
