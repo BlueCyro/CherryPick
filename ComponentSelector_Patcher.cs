@@ -150,11 +150,14 @@ public static class ComponentSelector_Patcher
 
     static void SmoothButton(Button b, float speed = 12f)
     {
-        FieldDrive<colorX>? driver = b.ColorDrivers.FirstOrDefault()?.ColorDrive;
-        IField<colorX>? targetField = driver?.Target;
+        if (b.ColorDrivers.Count < 1)
+            return;
+
+        FieldDrive<colorX> driver = b.ColorDrivers[0].ColorDrive;
+        IField<colorX>? targetField = driver.Target;
 
         // Make the button smoooooooth
-        if (driver != null && driver.Target != null)
+        if (targetField != null)
         {
             var smooth = b.Slot.AttachComponent<SmoothValue<colorX>>();
             smooth.TargetValue.Value = driver.Target.Value;
