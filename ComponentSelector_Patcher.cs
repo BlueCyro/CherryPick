@@ -12,27 +12,10 @@ namespace CherryPick;
 public static class ComponentSelector_Patcher
 {
     [HarmonyPrefix]
-    public static bool SetupUI_Prefix(ComponentSelector __instance, LocaleString title, float2 size, SyncRef<Slot> ____uiRoot, Sync<string> ____rootPath)
+    public static bool SetupUI_Prefix(ComponentSelector __instance, LocaleString title, float2 size)
     {
         if (!CherryPick.Config!.GetValue(CherryPick.Enabled))
             return true;
-
-
-        var onAddPressed =
-            __instance.GetType()
-            .GetMethod("OnAddComponentPressed", BindingFlags.NonPublic | BindingFlags.Instance)
-            ?.CreateDelegate(typeof(ButtonEventHandler<string>), __instance) as ButtonEventHandler<string>;
-
-
-        var onGenericPressed =
-            __instance.GetType()
-            .GetMethod("OpenGenericTypesPressed", BindingFlags.NonPublic | BindingFlags.Instance)
-            ?.CreateDelegate(typeof(ButtonEventHandler<string>), __instance) as ButtonEventHandler<string>;
-
-
-        if (onAddPressed == null || onGenericPressed == null)
-            return true;
-
 
         // Yeah.
         if (CherryPick.Config!.GetValue(CherryPick.SelectorFlair))
@@ -51,7 +34,7 @@ public static class ComponentSelector_Patcher
         builder.HorizontalLayout(7.28605f);
         builder.Style.MinWidth = 64f;
         builder.Style.FlexibleWidth = 1f;
-        var field = builder.TextField(null, true, "Undo text field search", true, $"<alpha=#77>Search..."); // Make the search field
+        var field = builder.TextField(null!, true, "Undo text field search", true, $"<alpha=#77>Search..."); // Make the search field
 
         builder.Style.FlexibleWidth = 0f;
 
@@ -89,6 +72,8 @@ public static class ComponentSelector_Patcher
         // Make an overlapping layout so we can easily disable and enable the area where components are searched
         builder.OverlappingLayout(0f);
         builder.ScrollArea();
+
+        // Get the search root slot and put a vertical layout & content size fitter on it.
         Slot searchRoot = builder.Root;
         builder.VerticalLayout(7.28605f, 0f);
         builder.FitContent(SizeFit.Disabled, SizeFit.MinSize);
@@ -100,9 +85,9 @@ public static class ComponentSelector_Patcher
         builder.ScrollArea();
         builder.VerticalLayout(7.28605f, 7.28605f);
         builder.FitContent(SizeFit.Disabled, SizeFit.MinSize);
-        ____uiRoot.Target = builder.Root;
+        __instance._uiRoot.Target = builder.Root;
 
-        __instance.BuildUI(null, false, null, false); // Build the normal component selector UI
+        __instance.BuildUI(null!, false, null!, false); // Build the normal component selector UI
 
 
         UIBuilder searchBuilder = new(searchRoot);
@@ -164,7 +149,7 @@ public static class ComponentSelector_Patcher
             smooth.TargetValue.Value = driver.Target.Value;
             driver.Target = smooth.TargetValue;
             smooth.Value.Target = targetField;
-            smooth.Speed.Value = speed;             
+            smooth.Speed.Value = speed;
         }
     }
 }
