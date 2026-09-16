@@ -24,8 +24,7 @@ public partial class CherryPick : ResoniteMod
         {
             Task.Run(() =>
             {
-                // CherryPicker.WarmScope(); // Initialize class to warm up those code paths all nice and toasty (so we don't hitch when first spawning a component selector)
-                // CherryPicker.WarmScope(ProtoFluxHelper.PROTOFLUX_ROOT);
+                // This is mostly just cosmetic so that the static constructor runs.
                 CherryPicker.SetReady();
             });
         });
