@@ -11,6 +11,8 @@ namespace CherryPick;
 [HarmonyPatch(typeof(ComponentSelector), "SetupUI")]
 public static class ComponentSelector_Patcher
 {
+    static readonly ConditionalWeakTable<ComponentSelector, CherryPicker> _pickerPairs = [];
+
     [HarmonyPrefix]
     public static bool SetupUI_Prefix(ComponentSelector __instance, LocaleString title, float2 size)
     {
@@ -91,8 +93,6 @@ public static class ComponentSelector_Patcher
 
 
         UIBuilder searchBuilder = new(searchRoot);
-        CherryPicker picker = new(searchRoot, ____uiRoot, onGenericPressed, onAddPressed, searchBuilder, ____rootPath);
-
 
         RadiantUI_Constants.SetupEditorStyle(searchBuilder);
         searchBuilder.Style.TextAlignment = Alignment.MiddleLeft;
@@ -100,34 +100,7 @@ public static class ComponentSelector_Patcher
         searchBuilder.Style.MinHeight = 80f;
         searchBuilder.Style.TextLineHeight = 1f;
 
-
-        // field.Editor.Target.LocalEditingStarted += picker.EditStart;
-        // field.Editor.Target.LocalEditingChanged += picker.EditChanged;
-        // field.Editor.Target.LocalEditingFinished += picker.EditFinished;
-
-
-        fieldText.Changed += c => picker.EditChanged(editor);
-
-
-        // void nullButtonPressed(IButton b, ButtonEventData d)
-        // {
-        //     field.Text.Content.Value = null;
-        //     field.Editor.Target.ForceEditingChangedEvent();
-        // }
-
-
-        // void nullButtonDestroyed(IDestroyable d)
-        // {
-        //     IButton destroyedButton = (IButton)d;
-
-        //     destroyedButton.LocalPressed -= nullButtonPressed;
-        //     destroyedButton.Destroyed -= nullButtonDestroyed;
-        // }
-
-
-        // nullButton.LocalPressed += nullButtonPressed;
-        // nullButton.Destroyed += nullButtonDestroyed;
-
+        _pickerPairs.TryAdd(__instance, new CherryPicker(__instance, editor, searchRoot, searchBuilder));
 
         return false;
     }

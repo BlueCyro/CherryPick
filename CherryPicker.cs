@@ -5,20 +5,21 @@ using static CherryPick.CherryPick;
 
 namespace CherryPick;
 
-public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHandler<string> onGenericPressed, ButtonEventHandler<string> onAddPressed, UIBuilder searchBuilder, Sync<string> scope)
+public class CherryPicker
 {
     public string Scope
     {
-        get => scope.Value;
-        set => scope.Value = value;
+        get => _owner._rootPath;
+        set => _owner._rootPath.Value = value;
     }
+
     public static bool IsReady { get; private set; }
     public static WorkerDetails[] Workers => _allWorkers;
-    private readonly SortedList<float, WorkerDetails> _results = new(new MatchRatioComparer()); // Not queryable by index due to the implementation of MatchRatioComparer
-    private static readonly WorkerDetails[] _allWorkers = [];
 
 
     private const string PROTOFLUX_PREFIX = "/ProtoFlux/Runtimes/";
+    private static readonly WorkerDetails[] _allWorkers = [];
+
 
     static CherryPicker()
     {
@@ -34,28 +35,39 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
         // using FileStream compFile = File.OpenWrite("./COMPONENTS.txt");
         // using StreamWriter writer = new(compFile);
 
-        foreach (var category in allCategories)
-        {
-            foreach (var element in category.Elements)
-            {
-                if (element.IsDataModelType())
-                {
-                    string elementName = element.GetNiceName();
-                    string elementPath = category.GetPath();
 
-                    // writer.WriteLine($"{elementName}\n{elementPath}\n");
-                    WorkerDetails detail = new(elementName, elementPath, element);
-                    details.Add(detail);
-                }
-            }
-        }
+        foreach (CategoryNode<Type> category in allCategories)
+            foreach (Type element in category.Elements)
+                if (element.IsDataModelType() && element.AssemblyQualifiedName is { } qualifiedName)
+                    details.Add(new WorkerDetails(element, category.GetPath()));
 
         _allWorkers = [.. details];
     }
 
-
-
     public static void SetReady() => IsReady = true;
+
+
+
+
+    readonly SortedList<float, WorkerDetails> _results; // Not queryable by index due to the implementation of MatchRatioComparer
+    readonly UIBuilder _searchResultBuilder;
+    readonly ComponentSelector _owner;
+    readonly TextEditor _searchEditor;
+    readonly Slot _searchRoot;
+
+
+    public CherryPicker(ComponentSelector owner, TextEditor searchEditor, Slot searchRoot, UIBuilder searchBuilder)
+    {
+        _owner = owner;
+        _searchRoot = searchRoot;
+        _searchEditor = searchEditor;
+        _searchResultBuilder = searchBuilder;
+        _results = new(new MatchRatioComparer());
+
+        _searchEditor.Text.Target.Changed += EditChanged;
+        _owner.Destroyed += OnOwnerDestroyed;
+    }
+
 
 
 
@@ -128,97 +140,56 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
 
 
-    #region TextEditor Events
-
-
-
-    // public void EditStart(TextEditor editor)
-    // {
-    //     if (componentUIRoot != null && searchRoot != null)
-    //     {
-    //         componentUIRoot.ActiveSelf = false;
-    //         searchRoot.ActiveSelf = true;
-    //     }
-    // }
-
-
-
-    // public void EditFinished(TextEditor editor)
-    // {
-    //     if (editor != null &&
-    //         editor.Text.Target != null &&
-    //         string.IsNullOrEmpty(editor.Text.Target.Text) &&
-    //         componentUIRoot != null &&
-    //         searchRoot != null)
-    //     {
-    //         componentUIRoot.ActiveSelf = true;
-    //         searchRoot.ActiveSelf = false;
-    //     }
-    // }
-
-
-
-    public void OpenPickerView()
+    public void SetPicking(bool picking)
     {
-        componentUIRoot.ActiveSelf = false;
-        searchRoot.ActiveSelf = true;
-    }
+        if (_owner is null || _owner._uiRoot.Target is null || _searchRoot is null)
+            return;
 
-    public void ClosePickerView()
-    {
-        componentUIRoot.ActiveSelf = true;
-        searchRoot.ActiveSelf = false;
-    }
-
-    public static void ClearSearch(TextEditor editor)
-    {
-        editor.Text.Target.Text = null!;
+        _owner._uiRoot.Target.ActiveSelf = !picking;
+        _searchRoot.ActiveSelf = picking;
     }
 
 
+    public static void ClearSearch(TextEditor editor) => editor.Text.Target.Text = null!;
 
-    public void EditChanged(TextEditor editor)
+    public void EditChanged(IChangeable _)
     {
-        if (searchRoot == null ||
-            componentUIRoot == null || 
-            editor == null ||
-            onGenericPressed == null ||
-            onAddPressed == null || 
-            searchBuilder == null ||
-            !IsReady) // You can't search until the cache is built! This is fine in most cases, but if you end up searching before then, too bad!
-                return;
+        if (_owner is null
+         || _owner._uiRoot is null
+         || _searchRoot is null
+         || _searchEditor is null
+         || _searchResultBuilder is null)
+            return;
 
 
-        string txt = editor.Text.Target.Text;
+        string? txt = _searchEditor.Text.Target.Text;
         if (string.IsNullOrEmpty(txt))
         {
-            ClosePickerView();
+            SetPicking(false);
             return;
         }
 
-        OpenPickerView();
+        SetPicking(true);
 
+        int genStart = txt.IndexOf('<');
+        int genEnd = txt.LastIndexOf('>') + 1;
+        string? genericTypeParams = null;
+        string? matchTxt;
 
-        int genericStart = txt.IndexOf('<');
-        int genericEnd = txt.LastIndexOf('>');
-        int diff = (genericEnd - genericStart) - 1;
-        string? matchTxt = null;
-        string? genericType = null;
-
-        if (genericStart > 0)
+        if (genStart > 0)
         {
-            matchTxt = txt.Substring(0, genericStart);
+            matchTxt = txt[..genStart];
 
-            if (genericEnd > 0 && diff > 0)
-                genericType = txt.Substring(genericStart + 1, diff);
+            if (genEnd > 0)
+                genericTypeParams = txt[genStart..genEnd];
         }
         else
-        {
             matchTxt = txt;
-        }
 
 
-        // searchRoot.DestroyChildren();
+        matchTxt = matchTxt.ToLower(); // Ensure lowercase such that queries like "SpInNeR" will still find "Spinner" by it's lowercase form: "spinner"
+
+        _searchRoot.DestroyChildren();
         int resultCount = Config!.GetValue(ResultCount);
         resultCount = MathX.Min(resultCount, MAX_RESULT_COUNT);
 
@@ -230,87 +201,46 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
         PerformMatch(matchTxt, resultCount, showProtofluxComponents);
 
-        try
+        IList<WorkerDetails> foundResults = _results.Values;
+        int foundResultCount = foundResults.Count;
+
+        for (int i = 0; i < foundResultCount; i++)
         {
-            searchRoot.FindChild(s => s.OrderOffset == -1024)?.Destroy();
-            WorkerDetails firstGeneric = _results.Values.First(w => w.Type.IsGenericTypeDefinition); // Bails the try/catch if it fails
+            WorkerDetails result = foundResults[i];
+            Type type = result.Type;
 
-            if (!string.IsNullOrEmpty(genericType))
+
+            colorX buttonColor;
+            string arg;
+            ButtonEventHandler<string> pressedHandler;
+
+            if (   genericTypeParams is not null
+                && _owner.World.Types.ParseNiceType(result.Name + genericTypeParams, true) is Type genType
+                && genType.GetGenericTypeDefinition() == result.Type
+                && genType.IsValidGenericType(true))
             {
-                Type? genParam = searchRoot.World.Types.ParseNiceType(genericType, true);
-                if (genParam is null)
-                    goto PARSE_TYPES;
-
-                Type? constructed = firstGeneric.Type.MakeGenericType(genParam);
-
-                if (constructed is null)
-                    goto PARSE_TYPES;
-
-                bool isValid = (bool?)constructed.GetProperty("IsValidGenericType")?.GetValue(null) ?? true;
-
-                if (!isValid)
-                    goto PARSE_TYPES;
-
-                try
-                {
-                    string arg = searchRoot.World.Types().EncodeType(constructed);
-                    WorkerDetails detail = new(constructed.GetNiceName(), firstGeneric.Path, constructed);
-                    Button typeButton = CreateButton(detail, onAddPressed, arg, searchBuilder, editor, RadiantUI_Constants.Sub.ORANGE);
-                    typeButton.Slot.OrderOffset = -1024;
-                }
-                catch (ArgumentException)
-                {
-                    CherryPick.Warn($"Tried to encode a non-data model type: {constructed}");
-                }
+                arg = _owner.World.Types().EncodeType(genType);
+                result = result with { Type = genType };
+                buttonColor = RadiantUI_Constants.Sub.GREEN;
+                pressedHandler = _owner.OnAddComponentPressed;
             }
-        }
-        catch (InvalidOperationException) { } // Swallow this exception in particular because First() will throw if nothing satisfies the lambda condition
-
-        PARSE_TYPES:
-
-        for (int i = 0; i < searchRoot.ChildrenCount; i++)
-        {
-            if (searchRoot[i].OrderOffset == -1024)
-                continue;
-
-            if (!_results.Any(r => r.Value.Name == searchRoot[i].Name))
+            else if (result.IsEmptyGeneric)
             {
-                searchRoot[i].ActiveSelf = false;
-                searchRoot.World.RunInUpdates(1, searchRoot[i].Destroy);
+                arg = Path.Combine(result.Path, result.AssemblyQualifiedName);
+                buttonColor = RadiantUI_Constants.Dark.GREEN;
+                pressedHandler = _owner.OpenGenericTypesPressed;
             }
-        }
-
-        int j = 0;
-        foreach (var result in _results.Values)
-        {
-            bool isGenType = result.Type.IsGenericTypeDefinition;
-            string arg = "";
-
-            Slot? existingMatch = searchRoot.FindChild(s => s.Name == result.Name);
-            if (existingMatch is not null)
+            else
             {
-                existingMatch.OrderOffset = j++;
-                continue;
+                arg = _owner.World.Types().EncodeType(result.Type);
+                buttonColor = RadiantUI_Constants.Sub.CYAN;
+                pressedHandler = _owner.OnAddComponentPressed;
             }
 
-            Slot? buttonSlot = null;
-            try
-            {
-                arg = isGenType ? Path.Combine(result.Path, result.Type.AssemblyQualifiedName) : searchRoot.World.Types().EncodeType(result.Type);
-                var pressed = isGenType ? onGenericPressed : onAddPressed;
-                buttonSlot = CreateButton(result, pressed, arg, searchBuilder, editor, RadiantUI_Constants.Sub.CYAN).Slot;
-            }
-            catch (ArgumentException)
-            {
-                CherryPick.Warn($"Tried to encode a non-data model type: {result.Type}");
-            }
-            j++;
+            Slot buttonSlot = CreateButton(result, pressedHandler, arg, _searchResultBuilder, _searchEditor, buttonColor).Slot;
+            buttonSlot.OrderOffset = i;
         }
     }
-
-
-
-    #endregion
 
 
 
@@ -319,13 +249,13 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
     {
         // Snip the scope off of the beginning of the path if the browser so that it's relative to the scope
         string path = Scope != null ? detail.Path.Replace("/" + Scope, null) : detail.Path;
-        string buttonText = $"<noparse={detail.Name.Length}>{detail.Name}<br><size=61.803%><line-height=133%>{path}";
+        string buttonText = $"<noparse={detail.NiceName.Length}>{detail.NiceName}<br><size=61.803%><line-height=133%>{path}";
 
 
         var button = builder.Button(buttonText, col, pressed, arg, PressDelay);
         ValueField<ulong> pressProxy = button.Slot.AddSlot("PressProxy").AttachComponent<ValueField<ulong>>();
         ButtonValueShift<ulong> proxyShifter = button.Slot.AttachComponent<ButtonValueShift<ulong>>();
-        button.Slot.Name = detail.Name;
+        button.Slot.Name = detail.NiceName;
 
         proxyShifter.Delta.Value = 1;
         proxyShifter.TargetValue.Target = pressProxy.Value;
@@ -338,28 +268,18 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
             // Define delegate here for unsubscription later
             void CherryPickButtonPress(IChangeable c)
             {
-                double now = searchRoot.World.Time.WorldTime;
+                double now = _searchRoot.World.Time.WorldTime;
 
 
                 if (now - lastPressed.Value < CherryPick.PressDelay || CherryPick.SingleClick)
                 {
-                    ClosePickerView();
+                    SetPicking(false);
                     ClearSearch(editor);
                 }
                 else
                     lastPressed.Value.Value = now;
             }
 
-
-            // // Destroy delegate for unsubscription
-            // void ButtonDestroyed(IDestroyable d)
-            // {
-            //     IButton destroyedButton = (IButton)d;
-
-            //     // When the button is destroyed, unsubscribe the events like a good boy
-            //     destroyedButton.LocalPressed -= CherryPickButtonPress;
-            //     destroyedButton.Destroyed -= ButtonDestroyed;
-            // }
 
             void DestroyPressProxy(IDestroyable d)
             {
@@ -375,7 +295,7 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
         // Funny magic UI numbers
         var text = (Text)button.LabelTextField.Parent;
-        text.Size.Value = 24.44582f; 
+        text.Size.Value = 24.44582f;
 
 
         // Smooth the color transitions on the buttons for visual appeal
@@ -391,6 +311,13 @@ public class CherryPicker(Slot searchRoot, Slot componentUIRoot, ButtonEventHand
 
         return button;
     }
+
+
+    void OnOwnerDestroyed(IDestroyable destroyable)
+    {
+        _searchEditor?.LocalEditingChanged -= EditChanged;
+        _owner?.Destroyed -= OnOwnerDestroyed;
+    }
 }
 
 
@@ -404,3 +331,58 @@ public readonly struct MatchRatioComparer : IComparer<float>
     }
 }
 
+
+// public static class CherryPickSearcher
+// {
+//     public void PerformMatch(string query, int resultCount = 10, bool showProtofluxComponents = true)
+//     {
+//         ResetResults(resultCount);
+
+//         int workerCount = Workers.Length;
+//         WorkerDetails[] details = Workers;
+
+//         string[] splitQuery = query.Split(' ');
+
+
+
+//         // The for loops are a bit hot and can cause minor
+//         // hitches if care isn't taken. Avoiding branch logic if possible
+
+//         // Check if there's actually anything to filter, because if there isn't, a slightly more efficient loop can be used
+//         if (string.IsNullOrEmpty(Scope) && showProtofluxComponents)
+//         {
+//             for (int i = 0; i < workerCount; i++)
+//             {
+//                 WorkerDetails worker = details[i];
+//                 float ratio = CherryPick_Helper.MatchRatioInsensitive(worker.LowerName, splitQuery);
+
+//                 _results.Add(ratio, worker);
+//                 int detailCount = _results.Count;
+
+//                 _results.RemoveAt(detailCount - 1);
+//             }
+//         }
+//         else
+//         {
+//             string searchScope = "/" + Scope;
+//             for (int i = 0; i < workerCount; i++)
+//             {
+//                 WorkerDetails worker = details[i];
+//                 float ratio = worker.Path.StartsWith(searchScope) && (showProtofluxComponents || !worker.Path.StartsWith(PROTOFLUX_PREFIX))
+//                     ? CherryPick_Helper.MatchRatioInsensitive(worker.LowerName, splitQuery)
+//                     : 0f;
+
+//                 _results.Add(ratio, worker);
+//                 int detailCount = _results.Count;
+
+//                 _results.RemoveAt(detailCount - 1);
+//             }
+//         }
+
+
+//         // Remove the zero-scored results after the fact. Avoids another conditional in the hot path above
+//         while (MathX.Approximately(_results.LastOrDefault().Key, 0f) && _results.Count > 0)
+//             _results.RemoveAt(_results.Count - 1);
+
+//     }
+// }
