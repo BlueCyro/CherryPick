@@ -3,6 +3,7 @@ using System.Reflection;
 using FrooxEngine;
 using Elements.Core;
 using FrooxEngine.UIX;
+using System.Runtime.CompilerServices;
 
 namespace CherryPick;
 
@@ -174,4 +175,58 @@ public static class World_Patcher
 {
     [HarmonyReversePatch]
     public static TypeManager Types(this World w) => throw new NotImplementedException("Harmony stub");
+}
+
+#pragma warning disable IDE1006 // Naming rule violation: Prefix '_' is not expected
+public static class AccessHelper
+{
+    static readonly ConditionalWeakTable<ComponentSelector, ButtonEventHandler<string>> _onAddComponentPressedCache = [];
+    static readonly ConditionalWeakTable<ComponentSelector, ButtonEventHandler<string>> _openGenericTypesPressedCache = [];
+
+    extension (ComponentSelector selector)
+    {
+        public ref SyncRef<Slot> _uiRoot => ref field__uiRoot(selector);
+        public ref Sync<string> _rootPath => ref field__rootPath(selector);
+
+        public ButtonEventHandler<string> OnAddComponentPressed
+        {
+            get
+            {
+                if (!_onAddComponentPressedCache.TryGetValue(selector, out var handler))
+                {
+                    handler = typeof(ComponentSelector)
+                        .GetMethod("OnAddComponentPressed", BindingFlags.NonPublic | BindingFlags.Instance)
+                        ?.CreateDelegate(typeof(ButtonEventHandler<string>), selector) as ButtonEventHandler<string>;
+
+                    _onAddComponentPressedCache.TryAdd(selector, handler ?? throw new NullReferenceException("OnAddComponentPressed was null!!! (Did it change in a recent update?)"));
+                }
+
+                return handler;
+            }
+        }
+
+        public ButtonEventHandler<string> OpenGenericTypesPressed
+        {
+            get
+            {
+                if (!_openGenericTypesPressedCache.TryGetValue(selector, out var handler))
+                {
+                    handler = typeof(ComponentSelector)
+                        .GetMethod("OpenGenericTypesPressed", BindingFlags.NonPublic | BindingFlags.Instance)
+                        ?.CreateDelegate(typeof(ButtonEventHandler<string>), selector) as ButtonEventHandler<string>;
+
+                    _openGenericTypesPressedCache.TryAdd(selector, handler ?? throw new NullReferenceException("OpenGenericTypesPressed was null!!! (Did it change in a recent update?)"));
+                }
+
+                return handler;
+            }
+        }
+    }
+
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_uiRoot")]
+    static extern ref SyncRef<Slot> field__uiRoot(ComponentSelector obj);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_rootPath")]
+    static extern ref Sync<string> field__rootPath(ComponentSelector obj);
 }

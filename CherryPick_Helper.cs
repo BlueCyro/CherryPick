@@ -31,7 +31,7 @@ public static class CherryPick_Helper
 
         return totalScore;
     }
-    
+
     /// <summary>
     /// Bitwise check to see if an integer is positive
     /// </summary>
