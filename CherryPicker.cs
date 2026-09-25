@@ -162,7 +162,9 @@ public class CherryPicker
 
     public static void ClearSearch(TextEditor editor) => editor.Text.Target.Text = null!;
 
-    public void EditChanged(IChangeable _)
+    public void EditChanged(IChangeable changeObj) => changeObj.World.RunSynchronously(OnSearchEdited);
+
+    public void OnSearchEdited()
     {
         if (_owner is null
          || _owner._uiRoot is null
@@ -278,16 +280,18 @@ public class CherryPicker
             // Define delegate here for unsubscription later
             void CherryPickButtonPress(IChangeable c)
             {
-                double now = _searchRoot.World.Time.WorldTime;
-
-
-                if (now - lastPressed.Value < CherryPick.PressDelay || CherryPick.SingleClick)
+                c.World.RunSynchronously(() =>
                 {
-                    SetPicking(false);
-                    ClearSearch(editor);
-                }
-                else
-                    lastPressed.Value.Value = now;
+                    double now = c.World.Time.WorldTime;
+
+                    if (now - lastPressed.Value < CherryPick.PressDelay || CherryPick.SingleClick)
+                    {
+                        SetPicking(false);
+                        ClearSearch(editor);
+                    }
+                    else
+                        lastPressed.Value.Value = now;
+                });
             }
 
 
