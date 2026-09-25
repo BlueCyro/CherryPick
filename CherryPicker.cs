@@ -225,7 +225,7 @@ public class CherryPicker
             ButtonEventHandler<string> pressedHandler;
 
             if (   genericTypeParams is not null
-                && _owner.World.Types.ParseNiceType(result.Name + genericTypeParams, true) is Type genType
+                && _owner.World.Types.ParseNiceType(result.Type.Namespace + '.' + result.Name + genericTypeParams, true) is Type genType
                 && genType.GetGenericTypeDefinition() == result.Type
                 && genType.IsValidGenericType(true))
             {
