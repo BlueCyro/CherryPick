@@ -53,6 +53,7 @@ public class CherryPicker
     readonly UIBuilder _searchResultBuilder;
     readonly ComponentSelector _owner;
     readonly TextEditor _searchEditor;
+    readonly Sync<string> _searchField;
     readonly Slot _searchRoot;
 
 
@@ -64,7 +65,16 @@ public class CherryPicker
         _searchResultBuilder = searchBuilder;
         _results = new(new MatchRatioComparer());
 
-        _searchEditor.Text.Target.Changed += EditChanged;
+        IText text = searchEditor.Text.Target;
+
+        if (text is Text uixText)
+            _searchField = uixText.Content;
+        else if (text is TextRenderer textRenderer)
+            _searchField = textRenderer.Text;
+        else
+            throw new InvalidOperationException($"Only {nameof(Text)} and {nameof(TextRenderer)} are supported text inputs");
+
+        _searchField.Changed += EditChanged;
         _owner.Destroyed += OnOwnerDestroyed;
     }
 
@@ -315,7 +325,7 @@ public class CherryPicker
 
     void OnOwnerDestroyed(IDestroyable destroyable)
     {
-        _searchEditor?.LocalEditingChanged -= EditChanged;
+        _searchField?.Changed -= EditChanged;
         _owner?.Destroyed -= OnOwnerDestroyed;
     }
 }
