@@ -35,11 +35,14 @@ public class CherryPicker
         // using FileStream compFile = File.OpenWrite("./COMPONENTS.txt");
         // using StreamWriter writer = new(compFile);
 
-
-        foreach (CategoryNode<Type> category in allCategories)
-            foreach (Type element in category.Elements)
-                if (element.IsDataModelType() && element.AssemblyQualifiedName is { } qualifiedName)
-                    details.Add(new WorkerDetails(element, category.GetPath()));
+        try {
+            foreach (CategoryNode<Type> category in allCategories)
+                foreach (Type element in category.Elements)
+                    if (element.IsDataModelType() && element.AssemblyQualifiedName is { } qualifiedName)
+                        details.Add(new WorkerDetails(element, category.GetPath()));
+        } catch(Exception ex) {
+            Msg("Enumeration Failed")
+        }
 
         _allWorkers = [.. details];
     }
